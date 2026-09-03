@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PawsPastures",
+    "name": "Paws & Pastures",
     "slug": "PawsPastures",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,6 +10,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.pawspastures.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +22,11 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9f682ef6-cf3d-44f7-8269-b26327761384"
+      }
     }
   }
 }

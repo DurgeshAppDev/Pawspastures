@@ -1,11 +1,12 @@
 {
-  "name": "pawspastures",
+  "name": "paws & pastures",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
     "babel-preset-expo": "^57.0.10",
     "expo": "~57.0.19",
     "expo-status-bar": "~57.0.1",
+    "firebase": "^12.18.0",
     "nativewind": "^4.2.6",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "react": "19.2.3",
