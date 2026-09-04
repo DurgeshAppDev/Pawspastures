@@ -16,9 +16,11 @@ ios/
 # EAS
 .eas/
 
+
 # Environment variables
 .env
 .env.*
+*.env
 !.env.example
 
 # Firebase native configuration
