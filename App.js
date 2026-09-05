@@ -1,8 +1,13 @@
 import "./global.css"
-import LoginScreen from "./app/auth/loginScreen";
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+
+import AuthLayout from "./app/auth/AuthLayout";
 
 export default function App() {
-  return(
- <LoginScreen/>
+  return (
+    <NavigationContainer>
+      <AuthLayout />
+    </NavigationContainer>
   );
 }

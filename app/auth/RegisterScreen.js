@@ -7,21 +7,27 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/theme";
-import { Images } from "../../src/constants";
 
-
-export default function LoginScreen({ navigation }) {
+export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // ================= LOGIN =================
+  // ================= REGISTER =================
 
-  const handleLogin = () => {
+  const handleRegister = () => {
+    if (!name.trim()) {
+      console.log("Please enter your name");
+      return;
+    }
+
     if (!email.trim()) {
       console.log("Please enter your email");
       return;
@@ -32,15 +38,22 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    // Firebase login will be added here
-    console.log("Login:", email, password);
-  };
+    if (!confirmPassword.trim()) {
+      console.log("Please confirm your password");
+      return;
+    }
 
-  // ================= GOOGLE LOGIN =================
+    if (password !== confirmPassword) {
+      console.log("Passwords do not match");
+      return;
+    }
 
-  const handleGoogleLogin = () => {
-    // Google authentication will be added here
-    console.log("Google Login");
+    // Firebase registration will be added here
+    console.log("Register:", {
+      name,
+      email,
+      password,
+    });
   };
 
   return (
@@ -74,14 +87,46 @@ export default function LoginScreen({ navigation }) {
           {/* ================= TITLE ================= */}
 
           <Text className="text-text-primary text-[38px] font-bold text-center">
-            Welcome back
+            Create account
           </Text>
 
           {/* ================= SUBTITLE ================= */}
 
           <Text className="text-text-muted text-[16px] text-center mt-2 mb-9">
-            Please enter your details to sign in
+            Join Paws & Pastures today
           </Text>
+
+          {/* ================= NAME ================= */}
+
+          <View className="mb-6">
+
+            <Text className="text-text-primary text-[14px] font-medium mb-2">
+              Full name
+            </Text>
+
+            <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
+
+              <Ionicons
+                name="person-outline"
+                size={23}
+                color={colors["icon-muted"]}
+                style={{ marginRight: 11 }}
+              />
+
+              <TextInput
+                className="flex-1 h-full text-text-primary text-[16px]"
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your full name"
+                placeholderTextColor={colors["text-placeholder"]}
+                autoCapitalize="words"
+                autoCorrect={false}
+                textContentType="name"
+                accessibilityLabel="Full name"
+              />
+
+            </View>
+          </View>
 
           {/* ================= EMAIL ================= */}
 
@@ -120,24 +165,9 @@ export default function LoginScreen({ navigation }) {
 
           <View className="mb-6">
 
-            <View className="flex-row justify-between items-center mb-2">
-
-              <Text className="text-text-primary text-[14px] font-medium">
-                Password
-              </Text>
-
-              <Pressable
-                onPress={() =>
-                  navigation.navigate("ForgotPassword")
-                }
-                accessibilityRole="button"
-              >
-                <Text className="text-accent text-[13px] font-semibold">
-                  Forgot Password?
-                </Text>
-              </Pressable>
-
-            </View>
+            <Text className="text-text-primary text-[14px] font-medium mb-2">
+              Password
+            </Text>
 
             <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
 
@@ -152,16 +182,14 @@ export default function LoginScreen({ navigation }) {
                 className="flex-1 h-full text-text-primary text-[16px]"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="••••••••"
+                placeholder="Create a password"
                 placeholderTextColor={colors["text-placeholder"]}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
-                textContentType="password"
+                textContentType="newPassword"
                 accessibilityLabel="Password"
               />
-
-              {/* Show / Hide Password */}
 
               <Pressable
                 onPress={() =>
@@ -189,16 +217,72 @@ export default function LoginScreen({ navigation }) {
             </View>
           </View>
 
-          {/* ================= SIGN IN ================= */}
+          {/* ================= CONFIRM PASSWORD ================= */}
+
+          <View className="mb-6">
+
+            <Text className="text-text-primary text-[14px] font-medium mb-2">
+              Confirm password
+            </Text>
+
+            <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
+
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={23}
+                color={colors["icon-muted"]}
+                style={{ marginRight: 11 }}
+              />
+
+              <TextInput
+                className="flex-1 h-full text-text-primary text-[16px]"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm your password"
+                placeholderTextColor={colors["text-placeholder"]}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="newPassword"
+                accessibilityLabel="Confirm password"
+              />
+
+              <Pressable
+                onPress={() =>
+                  setShowConfirmPassword((previous) => !previous)
+                }
+                className="p-2"
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showConfirmPassword
+                    ? "Hide confirm password"
+                    : "Show confirm password"
+                }
+              >
+                <Ionicons
+                  name={
+                    showConfirmPassword
+                      ? "eye-outline"
+                      : "eye-off-outline"
+                  }
+                  size={23}
+                  color={colors["icon-muted"]}
+                />
+              </Pressable>
+
+            </View>
+          </View>
+
+          {/* ================= CREATE ACCOUNT ================= */}
 
           <Pressable
-            onPress={handleLogin}
+            onPress={handleRegister}
             className="h-[56px] rounded-[12px] bg-primary flex-row items-center justify-center mt-2 gap-2 active:opacity-80"
             accessibilityRole="button"
           >
 
             <Text className="text-white text-[16px] font-bold">
-              Sign In
+              Create Account
             </Text>
 
             <Ionicons
@@ -209,56 +293,22 @@ export default function LoginScreen({ navigation }) {
 
           </Pressable>
 
-          {/* ================= DIVIDER ================= */}
-
-          <View className="flex-row items-center my-8">
-
-            <View className="flex-1 h-px bg-border" />
-
-            <Text className="text-[#BFA8A1] text-[11px] font-semibold mx-4">
-              OR CONTINUE WITH
-            </Text>
-
-            <View className="flex-1 h-px bg-border" />
-
-          </View>
-
-          {/* ================= GOOGLE ================= */}
-
-          <Pressable
-            onPress={handleGoogleLogin}
-            className="h-[54px] rounded-[12px] bg-surface-elevated flex-row items-center justify-center gap-3 active:opacity-80"
-            accessibilityRole="button"
-          >
-
-            <Image
-              source={Images.googleLogo}
-              className="w-6 h-6"
-              resizeMode="contain"
-            />
-
-            <Text className="text-[#D6DEE6] text-[16px] font-medium">
-              Continue with Google
-            </Text>
-
-          </Pressable>
-
-          {/* ================= REGISTER ================= */}
+          {/* ================= LOGIN ================= */}
 
           <View className="flex-row justify-center items-center mt-8">
 
             <Text className="text-[#BFA9A2] text-[14px]">
-              Don't have an account?{" "}
+              Already have an account?{" "}
             </Text>
 
             <Pressable
               onPress={() =>
-                navigation.navigate("RegisterScreen")
+                navigation?.navigate("Login")
               }
               accessibilityRole="button"
             >
               <Text className="text-[#FFB09A] text-[14px] font-bold">
-                Create one
+                Sign in
               </Text>
             </Pressable>
 
