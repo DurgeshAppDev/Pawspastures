@@ -9,7 +9,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pawspastures.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "useAppleSignIn":true
     },
     "android": {
       "package": "com.pawspastures.app",
@@ -31,7 +32,8 @@
       }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

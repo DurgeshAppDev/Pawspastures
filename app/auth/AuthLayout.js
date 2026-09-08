@@ -14,20 +14,11 @@ export default function AuthLayout() {
         headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="LoginScreen"
-        component={LoginScreen}
-      />
+      <Stack.Screen name="LoginScreen" component={LoginScreen} />
 
-      <Stack.Screen
-        name="RegisterScreen"
-        component={RegisterScreen}
-      />
+      <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
 
-      <Stack.Screen
-        name="ForgotPassword"
-        component={ForgotPasswordScreen}
-      />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   );
 }
