@@ -22,38 +22,58 @@ export default function RegisterScreen({ navigation }) {
 
   // ================= REGISTER =================
 
-  const handleRegister = () => {
-    if (!name.trim()) {
-      console.log("Please enter your name");
-      return;
-    }
-
-    if (!email.trim()) {
-      console.log("Please enter your email");
-      return;
-    }
-
-    if (!password.trim()) {
-      console.log("Please enter your password");
-      return;
-    }
-
-    if (!confirmPassword.trim()) {
-      console.log("Please confirm your password");
+  const handleRegister = async () => {
+    if (!email || !password || !confirmPassword) {
+      Alert.alert("Error", "Please fill all fields.");
       return;
     }
 
     if (password !== confirmPassword) {
-      console.log("Passwords do not match");
+      Alert.alert("Error", "Passwords do not match.");
       return;
     }
 
-    // Firebase registration will be added here
-    console.log("Register:", {
-      name,
-      email,
-      password,
-    });
+    try {
+      setLoading(true);
+
+      const user = await registerUser(email, password);
+
+      console.log("Registered user:", user.uid);
+
+      Alert.alert(
+        "Registration successful",
+        "Your account has been created."
+      );
+
+      // navigation.replace("Home");
+
+    } catch (error) {
+      console.log("Registration error:", error.code);
+
+      if (error.code === "auth/email-already-in-use") {
+        Alert.alert(
+          "Registration failed",
+          "An account already exists with this email."
+        );
+      } else if (error.code === "auth/invalid-email") {
+        Alert.alert(
+          "Registration failed",
+          "Please enter a valid email."
+        );
+      } else if (error.code === "auth/weak-password") {
+        Alert.alert(
+          "Registration failed",
+          "Password is too weak."
+        );
+      } else {
+        Alert.alert(
+          "Registration failed",
+          error.message
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -303,7 +323,7 @@ export default function RegisterScreen({ navigation }) {
 
             <Pressable
               onPress={() =>
-                navigation?.navigate("Login")
+                navigation?.navigate("LoginScreen")
               }
               accessibilityRole="button"
             >
