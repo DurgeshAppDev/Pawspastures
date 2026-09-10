@@ -1,72 +1,148 @@
 import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
-    GoogleAuthProvider,
-    signInWithCredential,
-    OAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  GoogleAuthProvider,
+  signInWithCredential,
+  OAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 
-import{
-GoogleSignin,
-isSuccessResponse,
-isErrorWithCode,
-statusCodes,
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
 } from "@react-native-google-signin/google-signin";
 
 import * as AppleAuthentication from "expo-apple-authentication";
 
-import{auth} from "../../src/config/firebase";
+import { Platform } from "react-native";
 
-//    Register user
+import { auth } from "../../src/config/firebase";
 
-export const registerUser = async (email,password) => {
-    const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-    );
-    return userCredential.user;
+// ============================================================
+// GOOGLE CONFIGURATION
+// ============================================================
+
+if (Platform.OS !== "web") {
+  GoogleSignin.configure({
+    webClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+
+    iosClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+
+    offlineAccess: false,
+  });
 }
 
-// login user
-export const loginUser = async (email,password) => {
-    const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
+// ============================================================
+// REGISTER USER
+// ============================================================
+
+export const registerUser = async (
+  email,
+  password
+) => {
+  const userCredential =
+    await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
     );
 
-    return userCredential.user;
-}
+  return userCredential.user;
+};
 
-GoogleSignin.configure({
-  webClientId:
-  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-});
+// ============================================================
+// LOGIN USER
+// ============================================================
 
-// login with google
+export const loginUser = async (
+  email,
+  password
+) => {
+  const userCredential =
+    await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+  return userCredential.user;
+};
+
+// ============================================================
+// GOOGLE LOGIN
+// ============================================================
 
 export const loginWithGoogle = async () => {
   try {
-    await GoogleSignin.hasPlayServices({
-      showPlayServicesUpdateDialog: true,
-    });
+    // ========================================================
+    // WEB
+    // ========================================================
 
-    const response = await GoogleSignin.signIn();
+    if (Platform.OS === "web") {
+      const provider =
+        new GoogleAuthProvider();
+
+      const userCredential =
+        await signInWithPopup(
+          auth,
+          provider
+        );
+
+      return userCredential.user;
+    }
+
+    // ========================================================
+    // ANDROID / IOS
+    // ========================================================
+
+    if (Platform.OS === "android") {
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+    }
+
+    const response =
+      await GoogleSignin.signIn();
+
+    console.log(
+      "GOOGLE NATIVE RESPONSE:",
+      JSON.stringify(
+        response,
+        null,
+        2
+      )
+    );
 
     if (!isSuccessResponse(response)) {
-      throw new Error("Google sign-in was cancelled.");
+      throw {
+        code: "SIGN_IN_CANCELLED",
+        message:
+          "Google sign-in was cancelled.",
+      };
     }
 
-    const { idToken } = response.data;
+    const idToken =
+      response.data?.idToken;
 
     if (!idToken) {
-      throw new Error("Google did not return an ID token.");
+      throw new Error(
+        "Google did not return an ID token."
+      );
     }
 
+    // ========================================================
+    // GOOGLE ID TOKEN → FIREBASE
+    // ========================================================
+
     const googleCredential =
-      GoogleAuthProvider.credential(idToken);
+      GoogleAuthProvider.credential(
+        idToken
+      );
 
     const userCredential =
       await signInWithCredential(
@@ -75,16 +151,124 @@ export const loginWithGoogle = async () => {
       );
 
     return userCredential.user;
+
   } catch (error) {
-    console.log("Google Sign-In Error:", error);
+    console.log(
+      "Google Sign-In Error:",
+      error
+    );
 
     if (
-      isErrorWithCode(error) &&
-      error.code === statusCodes.SIGN_IN_CANCELLED
+      isErrorWithCode(error)
+    ) {
+      if (
+        error.code ===
+        statusCodes.SIGN_IN_CANCELLED
+      ) {
+        throw {
+          code: "SIGN_IN_CANCELLED",
+          message:
+            "Google sign-in was cancelled.",
+        };
+      }
+
+      if (
+        error.code ===
+        statusCodes.IN_PROGRESS
+      ) {
+        throw {
+          code: "GOOGLE_SIGN_IN_IN_PROGRESS",
+          message:
+            "Google sign-in is already in progress.",
+        };
+      }
+
+      if (
+        error.code ===
+        statusCodes.PLAY_SERVICES_NOT_AVAILABLE
+      ) {
+        throw {
+          code: "PLAY_SERVICES_NOT_AVAILABLE",
+          message:
+            "Google Play Services are unavailable or need to be updated.",
+        };
+      }
+    }
+
+    throw error;
+  }
+};
+
+// ============================================================
+// APPLE LOGIN
+// ============================================================
+
+export const loginWithApple = async () => {
+  try {
+    const isAvailable =
+      await AppleAuthentication.isAvailableAsync();
+
+    if (!isAvailable) {
+      throw {
+        code: "apple-not-available",
+        message:
+          "Apple Sign-In is not available on this device.",
+      };
+    }
+
+    const credential =
+      await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication
+            .AppleAuthenticationScope
+            .FULL_NAME,
+
+          AppleAuthentication
+            .AppleAuthenticationScope
+            .EMAIL,
+        ],
+      });
+
+    if (!credential.identityToken) {
+      throw {
+        code: "apple-no-token",
+        message:
+          "Apple did not return an identity token.",
+      };
+    }
+
+    const provider =
+      new OAuthProvider("apple.com");
+
+    const appleCredential =
+      provider.credential({
+        idToken:
+          credential.identityToken,
+      });
+
+    const userCredential =
+      await signInWithCredential(
+        auth,
+        appleCredential
+      );
+
+    return userCredential.user;
+
+  } catch (error) {
+    console.log(
+      "Apple Sign-In Error:",
+      error
+    );
+
+    if (
+      error?.code ===
+      "ERR_REQUEST_CANCELED"
     ) {
       throw {
-        code: "auth/cancelled-popup-request",
-        message: "Google sign-in cancelled.",
+        code:
+          "auth/cancelled-popup-request",
+        message:
+          "Apple sign-in cancelled.",
       };
     }
 
@@ -92,68 +276,10 @@ export const loginWithGoogle = async () => {
   }
 };
 
-//    Apple login
+// ============================================================
+// LOGOUT
+// ============================================================
 
-export const loginWithApple = async ()=>{
- try {
-    // Check whether Apple Authentication is available
-    const isAvailable =
-      await AppleAuthentication.isAvailableAsync();
-
-    if (!isAvailable) {
-      throw {
-        code: "apple-not-available",
-        message: "Apple Sign-In is not available on this device.",
-      };
-    }
-
-    // Ask Apple for authentication
-    const credential =
-      await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-    // Apple must return an identity token
-    if (!credential.identityToken) {
-      throw {
-        code: "apple-no-token",
-        message: "Apple did not return an identity token.",
-      };
-    }
-
-    // Firebase Apple OAuth provider
-    const provider = new OAuthProvider("apple.com");
-
-    const appleCredential = provider.credential({
-      idToken: credential.identityToken,
-    });
-
-    // Sign into Firebase
-    const userCredential = await signInWithCredential(
-      auth,
-      appleCredential
-    );
-
-    return userCredential.user;
-  } catch (error) {
-    console.log("Apple Sign-In Error:", error);
-
-    // User cancelled Apple login
-    if (error?.code === "ERR_REQUEST_CANCELED") {
-      throw {
-        code: "auth/cancelled-popup-request",
-        message: "Apple sign-in cancelled.",
-      };
-    }
-
-    throw error;
- };
-};
-
- // logout user
-export const logoutUser = async ()=>{
-    await signOut(auth);
+export const logoutUser = async () => {
+  await signOut(auth);
 };

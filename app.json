@@ -4,17 +4,21 @@
     "slug": "PawsPastures",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "pawspastures",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pawspastures.app",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "useAppleSignIn":true
+      "usesAppleSignIn": true
     },
+
     "android": {
       "package": "com.pawspastures.app",
       "googleServicesFile": "./google-services.json",
+
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -22,15 +26,18 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
+
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
+
     "extra": {
       "eas": {
         "projectId": "9f682ef6-cf3d-44f7-8269-b26327761384"
       }
     },
+
     "plugins": [
       "expo-font",
       "@react-native-google-signin/google-signin"

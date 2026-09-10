@@ -10,9 +10,12 @@ import {
   Image,
   Alert,
 } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
+
 import { colors } from "../../src/theme";
 import { Images } from "../../src/constants";
+
 import {
   loginUser,
   loginWithGoogle,
@@ -22,12 +25,12 @@ import {
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
-
-  // ================= LOGIN =================
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -43,78 +46,75 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
 
-      const user = await loginUser(email, password);
+      await loginUser(email.trim(), password);
 
-      // navigation?.replace("HomeScreen")
+      // Add navigation after your Home screen is ready.
+      // navigation.replace("HomeScreen");
     } catch (error) {
-      console.log("Login error:", error.code);
-
-      if (error.code === "auth/invalid-credential") {
-        Alert.alert("Login failed", "Invalid email or password.");
-      } else if (error.code === "auth/invalid-email") {
-        Alert.alert("Login failed", "Please enter a valid email.");
+      if (error?.code === "auth/invalid-credential") {
+        Alert.alert(
+          "Login failed",
+          "Invalid email or password."
+        );
+      } else if (error?.code === "auth/invalid-email") {
+        Alert.alert(
+          "Login failed",
+          "Please enter a valid email."
+        );
       } else {
-        Alert.alert("Login failed", error.message);
+        Alert.alert(
+          "Login failed",
+          error?.message || "Unable to sign in."
+        );
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // ================= GOOGLE LOGIN =================
-
   const handleGoogleLogin = async () => {
-    // Native Google Sign-In does not work on Web
-    if (Platform.OS === "web") {
-      Alert.alert(
-        "Google Login",
-        "Google login is currently available on Android and iOS.",
-      );
-      return;
-    }
-
     try {
       setGoogleLoading(true);
 
-      const user = await loginWithGoogle();
+      await loginWithGoogle();
 
-      console.log("Google user:", user.uid);
-
+      // Add navigation after your Home screen is ready.
+      // navigation.replace("HomeScreen");
     } catch (error) {
-      console.log("Google login error:", error);
-
-      if (error.code === "auth/cancelled-popup-request") {
+      if (
+        error?.code === "SIGN_IN_CANCELLED" ||
+        error?.code === "auth/cancelled-popup-request"
+      ) {
         return;
       }
 
       Alert.alert(
         "Google Login failed",
-        error.message || "Unable to sign in with Google.",
+        error?.message || "Unable to sign in with Google."
       );
     } finally {
       setGoogleLoading(false);
     }
   };
-  // ================= APPLE LOGIN =================
 
   const handleAppleLogin = async () => {
     try {
       setAppleLoading(true);
 
-      const user = await loginWithApple();
+      await loginWithApple();
 
-      console.log("Apple user:", user.uid);
-
+      // Add navigation after your Home screen is ready.
+      // navigation.replace("HomeScreen");
     } catch (error) {
-      console.log("Apple login error:", error);
-
-      if (error.code === "auth/cancelled-popup-request") {
+      if (
+        error?.code === "auth/cancelled-popup-request"
+      ) {
         return;
       }
 
       Alert.alert(
         "Apple Login failed",
-        error.message || "Unable to sign in with Apple.",
+        error?.message || "Unable to sign in with Apple."
       );
     } finally {
       setAppleLoading(false);
@@ -135,22 +135,27 @@ export default function LoginScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ================= MAIN CONTENT ================= */}
-
         <View className="w-full max-w-[560px] self-center px-6 py-10">
-          {/* ================= PAW ICON ================= */}
+
+          {/* Paw Icon */}
           <View className="w-[64px] h-[64px] rounded-full bg-surface-icon items-center justify-center self-center mb-5">
-            <Ionicons name="paw" size={38} color={colors.primary} />
+            <Ionicons
+              name="paw"
+              size={38}
+              color={colors.primary}
+            />
           </View>
-          {/* ================= TITLE ================= */}
+
+          {/* Title */}
           <Text className="text-text-primary text-[38px] font-bold text-center">
             Welcome back
           </Text>
-          {/* ================= SUBTITLE ================= */}
+
           <Text className="text-text-muted text-[16px] text-center mt-2 mb-9">
             Please enter your details to sign in
           </Text>
-          {/* ================= EMAIL ================= */}
+
+          {/* Email */}
           <View className="mb-6">
             <Text className="text-text-primary text-[14px] font-medium mb-2">
               Email address
@@ -178,7 +183,8 @@ export default function LoginScreen({ navigation }) {
               />
             </View>
           </View>
-          {/* ================= PASSWORD ================= */}
+
+          {/* Password */}
           <View className="mb-6">
             <View className="flex-row justify-between items-center mb-2">
               <Text className="text-text-primary text-[14px] font-medium">
@@ -216,35 +222,53 @@ export default function LoginScreen({ navigation }) {
                 accessibilityLabel="Password"
               />
 
-              {/* Show / Hide Password */}
-
               <Pressable
-                onPress={() => setShowPassword((previous) => !previous)}
+                onPress={() =>
+                  setShowPassword((previous) => !previous)
+                }
                 className="p-2"
                 accessibilityRole="button"
                 accessibilityLabel={
-                  showPassword ? "Hide password" : "Show password"
+                  showPassword
+                    ? "Hide password"
+                    : "Show password"
                 }
               >
                 <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
+                  name={
+                    showPassword
+                      ? "eye-outline"
+                      : "eye-off-outline"
+                  }
                   size={23}
                   color={colors["icon-muted"]}
                 />
               </Pressable>
             </View>
           </View>
-          {/* ================= SIGN IN ================= */}
+
+          {/* Sign In */}
           <Pressable
             onPress={handleLogin}
-            className="h-[56px] rounded-[12px] bg-primary flex-row items-center justify-center mt-2 gap-2 active:opacity-80"
+            disabled={loading}
+            className="h-[56px] rounded-[12px] bg-primary flex-row items-center justify-center gap-2 mt-2 active:opacity-80"
             accessibilityRole="button"
+            accessibilityState={{ disabled: loading }}
           >
-            <Text className="text-white text-[16px] font-bold">Sign In</Text>
+            <Text className="text-white text-[16px] font-bold">
+              {loading ? "Signing in..." : "Sign In"}
+            </Text>
 
-            <Ionicons name="arrow-forward" size={21} color="#FFFFFF" />
+            {!loading && (
+              <Ionicons
+                name="arrow-forward"
+                size={21}
+                color="#FFFFFF"
+              />
+            )}
           </Pressable>
-          {/* ================= DIVIDER ================= */}
+
+          {/* Divider */}
           <View className="flex-row items-center my-8">
             <View className="flex-1 h-px bg-border" />
 
@@ -254,48 +278,61 @@ export default function LoginScreen({ navigation }) {
 
             <View className="flex-1 h-px bg-border" />
           </View>
-          {/* ================= GOOGLE ================= */}
-          {Platform.OS !== "web" && (
-            <Pressable
-              onPress={handleGoogleLogin}
-              disabled={googleLoading}
-              className="h-[54px] rounded-[12px] bg-surface-elevated flex-row items-center justify-center gap-3 active:opacity-80"
-              accessibilityRole="button"
-            >
-              <Image
-                source={Images.googleLogo}
-                className="w-6 h-6"
-                resizeMode="contain"
-              />
 
-              <Text className="text-[#D6DEE6] text-[16px] font-medium">
-                {googleLoading ? "Signing in..." : "Continue with Google"}
-              </Text>
-            </Pressable>
-          )}
-          {/* apple login */}
+          {/* Google */}
+          <Pressable
+            onPress={handleGoogleLogin}
+            disabled={googleLoading}
+            className="h-[54px] rounded-[12px] bg-surface-elevated flex-row items-center justify-center gap-3 active:opacity-80"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: googleLoading }}
+          >
+            <Image
+              source={Images.googleLogo}
+              className="w-6 h-6"
+              resizeMode="contain"
+            />
+
+            <Text className="text-[#D6DEE6] text-[16px] font-medium">
+              {googleLoading
+                ? "Signing in..."
+                : "Continue with Google"}
+            </Text>
+          </Pressable>
+
+          {/* Apple */}
           {Platform.OS === "ios" && (
             <Pressable
               onPress={handleAppleLogin}
               disabled={appleLoading}
               className="h-[54px] rounded-[12px] bg-black flex-row items-center justify-center gap-3 mt-3 active:opacity-80"
               accessibilityRole="button"
+              accessibilityState={{ disabled: appleLoading }}
             >
-              <Ionicons name="logo-apple" size={24} color="#FFFFFF" />
+              <Ionicons
+                name="logo-apple"
+                size={24}
+                color="#FFFFFF"
+              />
 
               <Text className="text-white text-[16px] font-medium">
-                {appleLoading ? "Signing in..." : "Continue with Apple"}
+                {appleLoading
+                  ? "Signing in..."
+                  : "Continue with Apple"}
               </Text>
             </Pressable>
           )}
-          {/* ================= REGISTER ================= */}
+
+          {/* Register */}
           <View className="flex-row justify-center items-center mt-8">
             <Text className="text-[#BFA9A2] text-[14px]">
               Don't have an account?{" "}
             </Text>
 
             <Pressable
-              onPress={() => navigation?.navigate("RegisterScreen")}
+              onPress={() =>
+                navigation.navigate("RegisterScreen")
+              }
               accessibilityRole="button"
             >
               <Text className="text-[#FFB09A] text-[14px] font-bold">
@@ -303,6 +340,7 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </Pressable>
           </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
