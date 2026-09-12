@@ -6,6 +6,8 @@ import {
   signInWithCredential,
   OAuthProvider,
   signInWithPopup,
+  updateProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 
 import {
@@ -19,12 +21,9 @@ import * as AppleAuthentication from "expo-apple-authentication";
 
 import { Platform } from "react-native";
 
-import { auth } from "../../src/config/firebase";
+import { auth } from "../config/firebase";
 
-// ============================================================
 // GOOGLE CONFIGURATION
-// ============================================================
-
 if (Platform.OS !== "web") {
   GoogleSignin.configure({
     webClientId:
@@ -37,11 +36,9 @@ if (Platform.OS !== "web") {
   });
 }
 
-// ============================================================
 // REGISTER USER
-// ============================================================
-
 export const registerUser = async (
+  name,
   email,
   password
 ) => {
@@ -52,13 +49,16 @@ export const registerUser = async (
       password
     );
 
-  return userCredential.user;
+  const user = userCredential.user;
+
+  await updateProfile(user, {
+    displayName: name,
+  });
+
+  return user;
 };
 
-// ============================================================
 // LOGIN USER
-// ============================================================
-
 export const loginUser = async (
   email,
   password
@@ -73,16 +73,9 @@ export const loginUser = async (
   return userCredential.user;
 };
 
-// ============================================================
 // GOOGLE LOGIN
-// ============================================================
-
 export const loginWithGoogle = async () => {
   try {
-    // ========================================================
-    // WEB
-    // ========================================================
-
     if (Platform.OS === "web") {
       const provider =
         new GoogleAuthProvider();
@@ -96,10 +89,6 @@ export const loginWithGoogle = async () => {
       return userCredential.user;
     }
 
-    // ========================================================
-    // ANDROID / IOS
-    // ========================================================
-
     if (Platform.OS === "android") {
       await GoogleSignin.hasPlayServices({
         showPlayServicesUpdateDialog: true,
@@ -108,15 +97,6 @@ export const loginWithGoogle = async () => {
 
     const response =
       await GoogleSignin.signIn();
-
-    console.log(
-      "GOOGLE NATIVE RESPONSE:",
-      JSON.stringify(
-        response,
-        null,
-        2
-      )
-    );
 
     if (!isSuccessResponse(response)) {
       throw {
@@ -135,10 +115,6 @@ export const loginWithGoogle = async () => {
       );
     }
 
-    // ========================================================
-    // GOOGLE ID TOKEN → FIREBASE
-    // ========================================================
-
     const googleCredential =
       GoogleAuthProvider.credential(
         idToken
@@ -153,14 +129,7 @@ export const loginWithGoogle = async () => {
     return userCredential.user;
 
   } catch (error) {
-    console.log(
-      "Google Sign-In Error:",
-      error
-    );
-
-    if (
-      isErrorWithCode(error)
-    ) {
+    if (isErrorWithCode(error)) {
       if (
         error.code ===
         statusCodes.SIGN_IN_CANCELLED
@@ -199,10 +168,7 @@ export const loginWithGoogle = async () => {
   }
 };
 
-// ============================================================
 // APPLE LOGIN
-// ============================================================
-
 export const loginWithApple = async () => {
   try {
     const isAvailable =
@@ -255,11 +221,6 @@ export const loginWithApple = async () => {
     return userCredential.user;
 
   } catch (error) {
-    console.log(
-      "Apple Sign-In Error:",
-      error
-    );
-
     if (
       error?.code ===
       "ERR_REQUEST_CANCELED"
@@ -276,10 +237,17 @@ export const loginWithApple = async () => {
   }
 };
 
-// ============================================================
-// LOGOUT
-// ============================================================
+// PASSWORD RESET
+export const resetPassword = async (
+  email
+) => {
+  await sendPasswordResetEmail(
+    auth,
+    email
+  );
+};
 
+// LOGOUT
 export const logoutUser = async () => {
   await signOut(auth);
 };

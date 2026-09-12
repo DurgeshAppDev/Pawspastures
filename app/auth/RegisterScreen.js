@@ -7,9 +7,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
+
 import { colors } from "../../src/theme";
+import { registerUser } from "../../src/services/AuthServices";
+import { createUserProfile } from "../../src/services/userServices";
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -19,58 +25,86 @@ export default function RegisterScreen({ navigation }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // ================= REGISTER =================
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill all fields.");
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (
+      !trimmedName ||
+      !trimmedEmail ||
+      !password ||
+      !confirmPassword
+    ) {
+      Alert.alert(
+        "Missing information",
+        "Please fill in all fields."
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(
+        "Invalid password",
+        "Password must be at least 6 characters."
+      );
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match.");
+      Alert.alert(
+        "Password mismatch",
+        "Passwords do not match."
+      );
       return;
     }
 
     try {
       setLoading(true);
 
-      const user = await registerUser(email, password);
+      const user = await registerUser(
+        trimmedName,
+        trimmedEmail,
+        password
+      );
 
-      console.log("Registered user:", user.uid);
+      await createUserProfile(
+        user.uid,
+        trimmedName,
+        trimmedEmail
+      );
 
       Alert.alert(
         "Registration successful",
-        "Your account has been created."
+        "Your account has been created successfully.",
+        [
+          {
+            text: "Continue",
+            onPress: () => {
+              navigation.replace("LoginScreen");
+            },
+          },
+        ]
       );
-
-      // navigation.replace("Home");
-
     } catch (error) {
-      console.log("Registration error:", error.code);
+      let message = "Something went wrong. Please try again.";
 
       if (error.code === "auth/email-already-in-use") {
-        Alert.alert(
-          "Registration failed",
-          "An account already exists with this email."
-        );
+        message = "An account already exists with this email.";
       } else if (error.code === "auth/invalid-email") {
-        Alert.alert(
-          "Registration failed",
-          "Please enter a valid email."
-        );
+        message = "Please enter a valid email address.";
       } else if (error.code === "auth/weak-password") {
-        Alert.alert(
-          "Registration failed",
-          "Password is too weak."
-        );
-      } else {
-        Alert.alert(
-          "Registration failed",
-          error.message
-        );
+        message = "Password is too weak.";
+      } else if (error.code === "auth/network-request-failed") {
+        message = "Please check your internet connection and try again.";
+      } else if (error.code === "auth/operation-not-allowed") {
+        message = "Email/password authentication is not enabled in Firebase.";
+      } else if (error.message) {
+        message = error.message;
       }
+
+      Alert.alert("Registration failed", message);
     } finally {
       setLoading(false);
     }
@@ -90,11 +124,7 @@ export default function RegisterScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ================= MAIN CONTENT ================= */}
-
         <View className="w-full max-w-[560px] self-center px-6 py-10">
-
-          {/* ================= PAW ICON ================= */}
 
           <View className="w-[64px] h-[64px] rounded-full bg-surface-icon items-center justify-center self-center mb-5">
             <Ionicons
@@ -104,28 +134,20 @@ export default function RegisterScreen({ navigation }) {
             />
           </View>
 
-          {/* ================= TITLE ================= */}
-
           <Text className="text-text-primary text-[38px] font-bold text-center">
             Create account
           </Text>
-
-          {/* ================= SUBTITLE ================= */}
 
           <Text className="text-text-muted text-[16px] text-center mt-2 mb-9">
             Join Paws & Pastures today
           </Text>
 
-          {/* ================= NAME ================= */}
-
           <View className="mb-6">
-
             <Text className="text-text-primary text-[14px] font-medium mb-2">
               Full name
             </Text>
 
             <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
-
               <Ionicons
                 name="person-outline"
                 size={23}
@@ -144,20 +166,15 @@ export default function RegisterScreen({ navigation }) {
                 textContentType="name"
                 accessibilityLabel="Full name"
               />
-
             </View>
           </View>
 
-          {/* ================= EMAIL ================= */}
-
           <View className="mb-6">
-
             <Text className="text-text-primary text-[14px] font-medium mb-2">
               Email address
             </Text>
 
             <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
-
               <Ionicons
                 name="mail-outline"
                 size={23}
@@ -177,20 +194,15 @@ export default function RegisterScreen({ navigation }) {
                 textContentType="emailAddress"
                 accessibilityLabel="Email address"
               />
-
             </View>
           </View>
 
-          {/* ================= PASSWORD ================= */}
-
           <View className="mb-6">
-
             <Text className="text-text-primary text-[14px] font-medium mb-2">
               Password
             </Text>
 
             <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
-
               <Ionicons
                 name="lock-closed-outline"
                 size={23}
@@ -217,11 +229,6 @@ export default function RegisterScreen({ navigation }) {
                 }
                 className="p-2"
                 accessibilityRole="button"
-                accessibilityLabel={
-                  showPassword
-                    ? "Hide password"
-                    : "Show password"
-                }
               >
                 <Ionicons
                   name={
@@ -233,20 +240,15 @@ export default function RegisterScreen({ navigation }) {
                   color={colors["icon-muted"]}
                 />
               </Pressable>
-
             </View>
           </View>
 
-          {/* ================= CONFIRM PASSWORD ================= */}
-
           <View className="mb-6">
-
             <Text className="text-text-primary text-[14px] font-medium mb-2">
               Confirm password
             </Text>
 
             <View className="h-[58px] bg-surface rounded-[12px] flex-row items-center px-4">
-
               <Ionicons
                 name="shield-checkmark-outline"
                 size={23}
@@ -269,15 +271,12 @@ export default function RegisterScreen({ navigation }) {
 
               <Pressable
                 onPress={() =>
-                  setShowConfirmPassword((previous) => !previous)
+                  setShowConfirmPassword(
+                    (previous) => !previous
+                  )
                 }
                 className="p-2"
                 accessibilityRole="button"
-                accessibilityLabel={
-                  showConfirmPassword
-                    ? "Hide confirm password"
-                    : "Show confirm password"
-                }
               >
                 <Ionicons
                   name={
@@ -289,41 +288,46 @@ export default function RegisterScreen({ navigation }) {
                   color={colors["icon-muted"]}
                 />
               </Pressable>
-
             </View>
           </View>
 
-          {/* ================= CREATE ACCOUNT ================= */}
-
           <Pressable
             onPress={handleRegister}
-            className="h-[56px] rounded-[12px] bg-primary flex-row items-center justify-center mt-2 gap-2 active:opacity-80"
+            disabled={loading}
+            className={`h-[56px] rounded-[12px] bg-primary flex-row items-center justify-center mt-2 gap-2 ${
+              loading ? "opacity-60" : "active:opacity-80"
+            }`}
             accessibilityRole="button"
+            accessibilityState={{ disabled: loading }}
           >
+            {loading ? (
+              <ActivityIndicator
+                size="small"
+                color="#FFFFFF"
+              />
+            ) : (
+              <>
+                <Text className="text-white text-[16px] font-bold">
+                  Create Account
+                </Text>
 
-            <Text className="text-white text-[16px] font-bold">
-              Create Account
-            </Text>
-
-            <Ionicons
-              name="arrow-forward"
-              size={21}
-              color="#FFFFFF"
-            />
-
+                <Ionicons
+                  name="arrow-forward"
+                  size={21}
+                  color="#FFFFFF"
+                />
+              </>
+            )}
           </Pressable>
 
-          {/* ================= LOGIN ================= */}
-
           <View className="flex-row justify-center items-center mt-8">
-
             <Text className="text-[#BFA9A2] text-[14px]">
               Already have an account?{" "}
             </Text>
 
             <Pressable
               onPress={() =>
-                navigation?.navigate("LoginScreen")
+                navigation.navigate("LoginScreen")
               }
               accessibilityRole="button"
             >
@@ -331,7 +335,6 @@ export default function RegisterScreen({ navigation }) {
                 Sign in
               </Text>
             </Pressable>
-
           </View>
 
         </View>
