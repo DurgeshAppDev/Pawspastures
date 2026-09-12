@@ -20,7 +20,7 @@ import {
   loginUser,
   loginWithGoogle,
   loginWithApple,
-} from "../services/AuthServices";
+} from "../../src/services/AuthServices";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -48,8 +48,6 @@ export default function LoginScreen({ navigation }) {
 
       await loginUser(email.trim(), password);
 
-      // Add navigation after your Home screen is ready.
-      // navigation.replace("HomeScreen");
     } catch (error) {
       if (error?.code === "auth/invalid-credential") {
         Alert.alert(

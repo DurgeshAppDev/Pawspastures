@@ -78,14 +78,6 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert(
         "Registration successful",
         "Your account has been created successfully.",
-        [
-          {
-            text: "Continue",
-            onPress: () => {
-              navigation.replace("LoginScreen");
-            },
-          },
-        ]
       );
     } catch (error) {
       let message = "Something went wrong. Please try again.";
