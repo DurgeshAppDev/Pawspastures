@@ -5,35 +5,35 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./app/**/*.{js,jsx,ts,tsx}",
   ],
+
   presets: [require("nativewind/preset")],
+
   theme: {
     extend: {
       colors: {
-        // Backgrounds
-        background: "#07111F",
-        surface: "#0D1B2A",
-        "surface-elevated": "#13263A",
-        "surface-icon": "#251A16",
+       
+        background: "#0A141D",
+        surface: "#17212A",
+        "surface-elevated": "#131D25",
+        "surface-icon": "#202B34",
 
-        // Brand
-        primary: "#FE5B00",
-        "primary-dark": "#D94D00",
+        primary: "#FFB59A",
+        "primary-dark": "#F39A7C",
 
-        // Text
+        // Orange accent
+        accent: "#FF6B00",
+
         "text-primary": "#FFFFFF",
-        "text-secondary": "#AAB4C0",
-        "text-muted": "#D2AAA0",
-        "text-placeholder": "#7E7775",
-        accent: "#FFB09A",
+        "text-secondary": "#B7C0C8",
+        "text-muted": "#8D989F",
+        "text-placeholder": "#6F7A82",
 
-        // Icons
-        "icon-muted": "#D7BDB2",
-
-        // Borders
-        border: "#26384A",
-        "border-subtle": "#1C2A34",
+        "icon-muted": "#C5CDD2",
+        border: "#2A3540",
+        "border-subtle": "#202C35",
       },
     },
   },
+
   plugins: [],
 };

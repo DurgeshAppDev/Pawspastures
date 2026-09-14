@@ -22,4 +22,7 @@ export const colors = {
         // Borders
         border: "#26384A",
         "border-subtle": "#1C2A34",
+
+        white: "#ffffff",
+        secondary:"#AAB4C0"
 };
