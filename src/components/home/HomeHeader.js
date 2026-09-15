@@ -8,21 +8,11 @@ export default function HomeHeader({
   onMessagesPress,
 }) {
   return (
-    <View className="flex-row items-center justify-between px-[18px] pb-4 pt-3">
+    <View className="flex-row items-center justify-between bg-background px-[18px] pb-2 pt-3">
       {/* Brand */}
       <View className="flex-1 pr-3">
-        <Text
-          style={{ color: colors.white }}
-          className="text-[24px] font-extrabold tracking-[-0.5px]"
-        >
+        <Text className="text-[20px] font-extrabold tracking-[-0.5px] text-text-primary">
           Paws & Pastures
-        </Text>
-
-        <Text
-          style={{ color: colors.secondary }}
-          className="mt-[3px] text-[13px] font-medium"
-        >
-          Where pets bring people together
         </Text>
       </View>
 
@@ -30,8 +20,7 @@ export default function HomeHeader({
       <View className="flex-row items-center gap-2.5">
         <Pressable
           onPress={onNotificationsPress}
-          className="h-[42px] w-[42px] items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.surface }}
+          className="h-[42px] w-[42px] items-center justify-center rounded-full bg-surface"
         >
           <Ionicons
             name="notifications-outline"
@@ -42,8 +31,7 @@ export default function HomeHeader({
 
         <Pressable
           onPress={onMessagesPress}
-          className="h-[42px] w-[42px] items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.surface }}
+          className="h-[42px] w-[42px] items-center justify-center rounded-full bg-surface"
         >
           <Ionicons
             name="chatbubble-ellipses-outline"

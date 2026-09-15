@@ -33,39 +33,12 @@ const stories = [
 
 export default function StoriesSection({ onStoryPress }) {
   return (
-    <View
-      className="border-y py-[15px]"
-      style={{
-        backgroundColor: colors.surface,
-        borderColor: colors.border,
-      }}
-    >
-      {/* Header */}
-      <View className="mb-3 flex-row items-center justify-between px-[18px]">
-        <Text
-          style={{ color: colors.white }}
-          className="text-[17px] font-extrabold"
-        >
-          Stories
-        </Text>
-
-        <Pressable>
-          <Text
-            style={{ color: colors.primary }}
-            className="text-[13px] font-bold"
-          >
-            See all
-          </Text>
-        </Pressable>
-      </View>
-
+    <View className="border-y border-border bg-surface py-[15px]">
       {/* Stories List */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 18,
-        }}
+        contentContainerClassName="px-[18px]"
       >
         {stories.map((story) => (
           <Pressable
@@ -74,33 +47,31 @@ export default function StoriesSection({ onStoryPress }) {
             className="mr-4 w-[66px] items-center"
           >
             {/* Story Circle */}
-            <View
-              className="h-[62px] w-[62px] items-center justify-center rounded-full border-2"
-              style={{
-                backgroundColor: colors.elevated,
-                borderColor: colors.primary,
-              }}
-            >
+            <View className="h-[62px] w-[62px] items-center justify-center rounded-full border-2 border-primary bg-surface-elevated">
               {story.isOwn ? (
-                <View
-                  className="h-[54px] w-[54px] items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: colors.surfaceIcon,
-                  }}
-                >
-                  <Ionicons name="add" size={28} color={colors.primary} />
+                <View className="h-[54px] w-[54px] items-center justify-center rounded-full bg-surface-icon">
+                  <Ionicons
+                    name="add"
+                    size={28}
+                    color={colors.primary}
+                  />
                 </View>
               ) : (
-                <Ionicons name="paw" size={27} color={colors.primary} />
+                <Ionicons
+                  name="paw"
+                  size={27}
+                  color={colors.primary}
+                />
               )}
             </View>
 
             <Text
               numberOfLines={1}
-              style={{
-                color: story.isOwn ? colors.white : colors.secondary,
-              }}
-              className="mt-[7px] text-[12px] font-semibold"
+              className={`mt-[7px] text-[12px] font-semibold ${
+                story.isOwn
+                  ? "text-text-primary"
+                  : "text-text-secondary"
+              }`}
             >
               {story.name}
             </Text>

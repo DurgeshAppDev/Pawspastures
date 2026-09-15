@@ -91,7 +91,7 @@ export default function HomeScreen() {
         >
           <Text
             style={{ color: colors.white }}
-            className="text-[20px] font-extrabold"
+            className="text-[18px] font-extrabold"
           >
             For you
           </Text>
