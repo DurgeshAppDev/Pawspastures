@@ -1,12 +1,51 @@
-import { View, Text} from "react-native";
+import React from "react";
+import {
+  View,
+  ScrollView,
+  StatusBar,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import ProfileHeader from "../../src/components/profile/ProfileHeader";
+import ProfileInfo from "../../src/components/profile/ProfileInfo";
+import ProfilePosts from "../../src/components/profile/ProfilePosts";
+import AddPostButton from "../../src/components/profile/AddPostButton";
 
-export default function ProfileScreen (){
+import { colors } from "../../src/theme";
 
-    return(
-        <View className ="w-full self-center px-6 py-10">
-            <Text className="text-text-primary text-40px">welcome to Profile screen</Text>
-        </View>
-    )
+export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
 
+  return (
+    <View
+      className="flex-1 bg-background"
+      style={{
+        paddingTop: insets.top,
+      }}
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={colors.background}
+        translucent={false}
+      />
+
+      <View className="flex-1">
+        <ProfileHeader />
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerClassName="pb-24"
+        >
+          <ProfileInfo />
+
+          <ProfilePosts />
+        </ScrollView>
+
+        <AddPostButton
+          onPress={() => {
+            console.log("Add Post pressed");
+          }}
+        />
+      </View>
+    </View>
+  );
 }
