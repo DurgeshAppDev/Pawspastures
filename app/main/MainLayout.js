@@ -1,5 +1,14 @@
 import React from "react";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Platform } from "react-native";
+
+import {
+  createNativeStackNavigator,
+} from "@react-navigation/native-stack";
+
+import {
+  createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,60 +18,84 @@ import CommunitiesScreen from "../(tabs)/CommunitiesScreen";
 import ShopScreen from "../(tabs)/ShopScreen";
 import ProfileScreen from "../(tabs)/ProfileScreen";
 
+import NewPostScreen from "./NewPostScreen";
+
 import { colors } from "../../src/theme";
 
+const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-export default function MainLayout() {
+function MainTabs() {
   const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
 
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-
-          height: 64 + insets.bottom,
-
-          paddingTop: 8,
-          paddingBottom: insets.bottom + 4,
-        },
+        tabBarShowLabel: true,
 
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarInactiveTintColor: colors["text-secondary"],
 
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+
+          height: 62 + insets.bottom,
+
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 6),
+
+          elevation: 10,
+
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          shadowOffset: {
+            width: 0,
+            height: -2,
+          },
         },
 
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: "600",
+          marginBottom: Platform.OS === "android" ? 2 : 0,
+        },
+
+        tabBarIcon: ({ focused, color }) => {
           let iconName;
 
           switch (route.name) {
             case "Home":
-              iconName = focused ? "home" : "home-outline";
+              iconName = focused
+                ? "home"
+                : "home-outline";
               break;
 
             case "Discover":
-              iconName = focused ? "compass" : "compass-outline";
+              iconName = focused
+                ? "compass"
+                : "compass-outline";
               break;
 
             case "Communities":
-              iconName = focused ? "people" : "people-outline";
+              iconName = focused
+                ? "people"
+                : "people-outline";
               break;
 
             case "Shop":
-              iconName = focused ? "bag" : "bag-outline";
+              iconName = focused
+                ? "bag-handle"
+                : "bag-handle-outline";
               break;
 
             case "Profile":
-              iconName = focused ? "person" : "person-outline";
+              iconName = focused
+                ? "person-circle"
+                : "person-circle-outline";
               break;
 
             default:
@@ -72,18 +105,58 @@ export default function MainLayout() {
           return (
             <Ionicons
               name={iconName}
-              size={size}
+              size={22}
               color={color}
             />
           );
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
-      <Tab.Screen name="Communities" component={CommunitiesScreen} />
-      <Tab.Screen name="Shop" component={ShopScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+      />
+
+      <Tab.Screen
+        name="Discover"
+        component={DiscoverScreen}
+      />
+
+      <Tab.Screen
+        name="Communities"
+        component={CommunitiesScreen}
+      />
+
+      <Tab.Screen
+        name="Shop"
+        component={ShopScreen}
+      />
+
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+      />
     </Tab.Navigator>
+  );
+}
+
+export default function MainLayout() {
+  return (
+    <Stack.Navigator
+      initialRouteName="MainTabs"
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen
+        name="MainTabs"
+        component={MainTabs}
+      />
+
+      <Stack.Screen
+        name="NewPost"
+        component={NewPostScreen}
+      />
+    </Stack.Navigator>
   );
 }

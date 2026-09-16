@@ -5,6 +5,7 @@ import {
   StatusBar,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 import ProfileHeader from "../../src/components/profile/ProfileHeader";
 import ProfileInfo from "../../src/components/profile/ProfileInfo";
@@ -14,6 +15,7 @@ import AddPostButton from "../../src/components/profile/AddPostButton";
 import { colors } from "../../src/theme";
 
 export default function ProfileScreen() {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
   return (
@@ -42,7 +44,7 @@ export default function ProfileScreen() {
 
         <AddPostButton
           onPress={() => {
-            console.log("Add Post pressed");
+            navigation.navigate("NewPost")
           }}
         />
       </View>
