@@ -9,8 +9,8 @@ const PROFILE_IMAGE =
 
 const PETS = [
   {
-    id: "adyota",
-    name: "Adyota",
+    id: "alice",
+    name: "Alice",
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300",
     active: true,
   },
