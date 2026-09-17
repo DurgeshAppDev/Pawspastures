@@ -1,10 +1,6 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  StatusBar,
-} from "react-native";
+import { View, Text, ScrollView, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 import { colors } from "../../src/theme/colors";
 
@@ -31,8 +27,7 @@ const FEED = [
     id: "reel-1",
     type: "reel",
     userName: "Bella's World",
-    caption:
-      "Someone discovered a new favorite toy 🐶",
+    caption: "Someone discovered a new favorite toy 🐶",
   },
 
   {
@@ -43,13 +38,13 @@ const FEED = [
     time: "5h ago",
     likes: 391,
     comments: 27,
-    caption:
-      "Just enjoying a peaceful afternoon in the garden.",
+    caption: "Just enjoying a peaceful afternoon in the garden.",
     image: null,
   },
 ];
 
 export default function HomeScreen() {
+  const navigation = useNavigation();
   return (
     <SafeAreaView
       edges={["top"]}
@@ -65,10 +60,7 @@ export default function HomeScreen() {
       />
 
       {/* Header */}
-      <HomeHeader
-        onNotificationsPress={() => {}}
-        onMessagesPress={() => {}}
-      />
+      <HomeHeader onNotificationsPress={() => {}} onMessagesPress={() => {}} />
 
       {/* Feed */}
       <ScrollView
@@ -79,9 +71,14 @@ export default function HomeScreen() {
       >
         {/* Stories */}
         <StoriesSection
-          onStoryPress={() => {}}
+          onStoryPress={(story) => {
+            if (story.isOwn) {
+              navigation.navigate("AddStory");
+            } else {
+              navigation.navigate("StoryViewer", { storyId: story.id });
+            }
+          }}
         />
-
         {/* Feed Heading */}
         <View
           className="px-[18px] pb-3 pt-5"
@@ -107,12 +104,7 @@ export default function HomeScreen() {
         {/* Mixed Feed */}
         {FEED.map((item) => {
           if (item.type === "reel") {
-            return (
-              <ReelCard
-                key={item.id}
-                reel={item}
-              />
-            );
+            return <ReelCard key={item.id} reel={item} />;
           }
 
           return (

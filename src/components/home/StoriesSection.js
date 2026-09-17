@@ -34,7 +34,6 @@ const stories = [
 export default function StoriesSection({ onStoryPress }) {
   return (
     <View className="border-y border-border bg-surface py-[15px]">
-      {/* Stories List */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
