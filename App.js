@@ -9,11 +9,13 @@ import {
 
 import { NavigationContainer } from "@react-navigation/native";
 import { onAuthStateChanged } from "firebase/auth";
-import * as Notifications from "expo-notifications";
-import { Camera } from "expo-camera";
-import * as ImagePicker from "expo-image-picker";
-
+import {
+  requestNotificationPermission,
+  requestCameraPermission,
+  requestGalleryPermission,
+} from "./src/services/permissions";
 import { auth } from "./src/config/firebase";
+
 import AuthLayout from "./app/auth/AuthLayout";
 import MainLayout from "./app/main/MainLayout";
 
@@ -24,89 +26,45 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  // -----------------------------
+  // Firebase authentication
+  // -----------------------------
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setCheckingAuth(false);
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (currentUser) => {
+        setUser(currentUser);
+        setCheckingAuth(false);
+      }
+    );
 
     return unsubscribe;
   }, []);
 
+  // -----------------------------
+  // Request  permission
+  // -----------------------------
+
+
   useEffect(() => {
     if (!checkingAuth) {
-      requestPermissions();
+      requestStartupPermissions();
     }
   }, [checkingAuth]);
+  const requestStartupPermissions = async () => {
+  if (Platform.OS === "web") {
+    return;
+  }
 
-  const requestPermissions = async () => {
-    try {
-      // Native permissions are not requested on Web
-      if (Platform.OS === "web") {
-        return;
-      }
+  await requestNotificationPermission();
 
-      // =========================
-      // NOTIFICATION PERMISSION
-      // =========================
-      const notification =
-        await Notifications.getPermissionsAsync();
+  await requestCameraPermission();
 
-      if (
-        !notification.granted &&
-        notification.canAskAgain
-      ) {
-        const result =
-          await Notifications.requestPermissionsAsync();
-
-        console.log(
-          "Notification permission:",
-          result.status
-        );
-      }
-
-      // =========================
-      // CAMERA PERMISSION
-      // =========================
-      const camera =
-        await Camera.getCameraPermissionsAsync();
-
-      if (
-        !camera.granted &&
-        camera.canAskAgain
-      ) {
-        const result =
-          await Camera.requestCameraPermissionsAsync();
-
-        console.log(
-          "Camera permission:",
-          result.status
-        );
-      }
-
-      // =========================
-      // PHOTO / MEDIA PERMISSION
-      // =========================
-      const media =
-        await ImagePicker.getMediaLibraryPermissionsAsync();
-
-      if (
-        !media.granted &&
-        media.canAskAgain
-      ) {
-        const result =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        console.log(
-          "Media permission:",
-          result.status
-        );
-      }
-    } catch (error) {
-      console.log("Permission error:", error);
-    }
-  };
-
+  await requestGalleryPermission();
+};
+  // -----------------------------
+  // Authentication loading
+  // -----------------------------
   if (checkingAuth) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
@@ -118,6 +76,9 @@ export default function App() {
     );
   }
 
+  // -----------------------------
+  // App navigation
+  // -----------------------------
   return (
     <SafeAreaProvider>
       <NavigationContainer>

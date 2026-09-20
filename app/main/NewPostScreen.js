@@ -13,6 +13,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "../../src/theme";
+import {
+  openGallerySafely,
+} from "../../src/services/permissions";
 
 export default function NewPostScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -25,14 +28,17 @@ export default function NewPostScreen({ navigation }) {
     navigation.goBack();
   };
 
-  const handleSelectMedia = () => {
-    /*
-      Later:
-      expo-image-picker can be connected here.
-    */
+ const handleSelectPhoto = async () => {
+  const result = await openGallerySafely();
 
-    Alert.alert("Add Media", "Photo/video picker will be connected here.");
-  };
+  if (!result) {
+    return;
+  }
+
+  const image = result.assets[0];
+
+  console.log("Selected image:", image);
+};
 
   const handleCreatePost = () => {
     if (!media) {

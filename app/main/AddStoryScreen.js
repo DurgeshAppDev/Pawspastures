@@ -15,11 +15,51 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "../../src/theme";
 
+import {
+  openCameraSafely,
+  openGallerySafely,
+} from "../../src/services/permissions";
+
 export default function AddStoryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const [selectedPet, setSelectedPet] = useState("Bruno");
   const [caption, setCaption] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  // ==========================================
+  // CAMERA
+  // ==========================================
+  const handleOpenCamera = async () => {
+  const result = await openCameraSafely();
+
+  if (!result) {
+    return;
+  }
+
+  if (result.assets?.length > 0) {
+    setSelectedImage(result.assets[0].uri);
+  }
+};
+  // ==========================================
+  // GALLERY
+  // ==========================================
+
+const handleOpenGallery = async () => {
+  const result = await openGallerySafely();
+
+  if (!result) {
+    return;
+  }
+
+  if (result.assets?.length > 0) {
+    setSelectedImage(result.assets[0].uri);
+  }
+};
+
+  // ==========================================
+  // PETS
+  // ==========================================
 
   const pets = [
     {
@@ -36,7 +76,24 @@ export default function AddStoryScreen({ navigation }) {
     },
   ];
 
+  const selectedPetData = pets.find(
+    (pet) => pet.name === selectedPet
+  );
+
+  // ==========================================
+  // CREATE STORY
+  // ==========================================
+
   const handleCreateStory = () => {
+    if (!selectedImage) {
+      Alert.alert(
+        "Add a photo",
+        "Please take a photo or choose one from your gallery before posting your story."
+      );
+
+      return;
+    }
+
     Alert.alert(
       "Story Ready",
       "Your story will be posted here once Firebase is connected."
@@ -55,7 +112,10 @@ export default function AddStoryScreen({ navigation }) {
         backgroundColor={colors.background}
       />
 
-      {/* HEADER */}
+      {/* ==========================================
+          HEADER
+      ========================================== */}
+
       <View className="flex-row items-center justify-between border-b border-border px-4 pb-4 pt-3">
         <Pressable
           onPress={() => navigation.goBack()}
@@ -81,7 +141,10 @@ export default function AddStoryScreen({ navigation }) {
           paddingBottom: 30 + insets.bottom,
         }}
       >
-        {/* STORY PREVIEW */}
+        {/* ==========================================
+            STORY PREVIEW
+        ========================================== */}
+
         <View className="px-4 pt-5">
           <Text className="mb-3 text-[15px] font-bold text-white">
             Story Preview
@@ -90,29 +153,28 @@ export default function AddStoryScreen({ navigation }) {
           <View className="h-[390px] overflow-hidden rounded-[24px] bg-surface">
             <Image
               source={{
-                uri: pets.find(
-                  (pet) => pet.name === selectedPet
-                )?.image,
+                uri:
+                  selectedImage ||
+                  selectedPetData?.image,
               }}
               className="h-full w-full"
               resizeMode="cover"
             />
 
             {/* DARK OVERLAY */}
+
             <View className="absolute inset-0 bg-black/20" />
 
             {/* PET INFORMATION */}
-            <View
-              className="absolute left-4 right-4 top-4 flex-row items-center"
-            >
+
+            <View className="absolute left-4 right-4 top-4 flex-row items-center">
               <View className="h-11 w-11 overflow-hidden rounded-full border-2 border-primary">
                 <Image
                   source={{
-                    uri: pets.find(
-                      (pet) => pet.name === selectedPet
-                    )?.image,
+                    uri: selectedPetData?.image,
                   }}
                   className="h-full w-full"
+                  resizeMode="cover"
                 />
               </View>
 
@@ -124,6 +186,7 @@ export default function AddStoryScreen({ navigation }) {
             </View>
 
             {/* CAPTION PREVIEW */}
+
             {caption.length > 0 && (
               <View className="absolute bottom-7 left-4 right-4">
                 <View className="self-start rounded-2xl bg-black/45 px-4 py-3">
@@ -134,7 +197,8 @@ export default function AddStoryScreen({ navigation }) {
               </View>
             )}
 
-            {/* PET PAW DECORATION */}
+            {/* PAW DECORATION */}
+
             <View className="absolute bottom-5 right-5 h-11 w-11 items-center justify-center rounded-full bg-primary">
               <Ionicons
                 name="paw"
@@ -145,7 +209,10 @@ export default function AddStoryScreen({ navigation }) {
           </View>
         </View>
 
-        {/* CHOOSE PET */}
+        {/* ==========================================
+            CHOOSE PET
+        ========================================== */}
+
         <View className="px-4 pt-7">
           <Text className="mb-3 text-[15px] font-bold text-white">
             Post as
@@ -156,12 +223,15 @@ export default function AddStoryScreen({ navigation }) {
             showsHorizontalScrollIndicator={false}
           >
             {pets.map((pet) => {
-              const selected = selectedPet === pet.name;
+              const selected =
+                selectedPet === pet.name;
 
               return (
                 <Pressable
                   key={pet.id}
-                  onPress={() => setSelectedPet(pet.name)}
+                  onPress={() =>
+                    setSelectedPet(pet.name)
+                  }
                   className={`mr-3 items-center rounded-2xl border px-3 py-3 ${
                     selected
                       ? "border-primary bg-primary/10"
@@ -178,6 +248,7 @@ export default function AddStoryScreen({ navigation }) {
                     <Image
                       source={{ uri: pet.image }}
                       className="h-full w-full"
+                      resizeMode="cover"
                     />
                   </View>
 
@@ -196,21 +267,21 @@ export default function AddStoryScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* MEDIA OPTIONS */}
+        {/* ==========================================
+            MEDIA OPTIONS
+        ========================================== */}
+
         <View className="px-4 pt-7">
           <Text className="mb-3 text-[15px] font-bold text-white">
             Add to your story
           </Text>
 
           <View className="flex-row">
+            {/* CAMERA */}
+
             <Pressable
               className="mr-3 flex-1 rounded-2xl bg-surface p-4 active:opacity-70"
-              onPress={() =>
-                Alert.alert(
-                  "Camera",
-                  "Camera will be connected next."
-                )
-              }
+              onPress={handleOpenCamera}
             >
               <View className="mb-3 h-11 w-11 items-center justify-center rounded-full bg-elevated">
                 <Ionicons
@@ -229,14 +300,11 @@ export default function AddStoryScreen({ navigation }) {
               </Text>
             </Pressable>
 
+            {/* GALLERY */}
+
             <Pressable
               className="flex-1 rounded-2xl bg-surface p-4 active:opacity-70"
-              onPress={() =>
-                Alert.alert(
-                  "Gallery",
-                  "Gallery picker will be connected next."
-                )
-              }
+              onPress={handleOpenGallery}
             >
               <View className="mb-3 h-11 w-11 items-center justify-center rounded-full bg-elevated">
                 <Ionicons
@@ -257,7 +325,10 @@ export default function AddStoryScreen({ navigation }) {
           </View>
         </View>
 
-        {/* CAPTION */}
+        {/* ==========================================
+            CAPTION
+        ========================================== */}
+
         <View className="px-4 pt-7">
           <Text className="mb-3 text-[15px] font-bold text-white">
             Add a message
@@ -281,11 +352,17 @@ export default function AddStoryScreen({ navigation }) {
           </View>
         </View>
 
-        {/* CREATE STORY */}
+        {/* ==========================================
+            CREATE STORY
+        ========================================== */}
+
         <View
           className="px-4 pt-7"
           style={{
-            paddingBottom: Math.max(insets.bottom, 12),
+            paddingBottom: Math.max(
+              insets.bottom,
+              12
+            ),
           }}
         >
           <Pressable

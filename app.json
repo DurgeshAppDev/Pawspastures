@@ -12,12 +12,22 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.pawspastures.app",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Paws & Pastures needs camera access so you can take photos and videos for your pets.",
+        "NSMicrophoneUsageDescription": "Paws & Pastures needs microphone access so you can record videos with sound.",
+        "NSPhotoLibraryUsageDescription": "Paws & Pastures needs photo library access so you can select photos and videos for your pets."
+      }
     },
 
     "android": {
       "package": "com.pawspastures.app",
       "googleServicesFile": "./google-services.json",
+
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ],
 
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -41,7 +51,9 @@
     "plugins": [
       "expo-font",
       "expo-notifications",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-camera",
+      "expo-image-picker"
     ]
   }
 }
