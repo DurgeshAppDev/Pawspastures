@@ -187,34 +187,28 @@ export const requestStartupPermissions = async () => {
   }
 };
 
+
 /**
  * ---------------------------------------------------------
- * OPEN CAMERA SAFELY
+ * OPEN STORY CAMERA SAFELY
  *
- * This checks permission AGAIN when camera is actually used.
+ * Story-specific camera.
+ * Video maximum = 15 seconds.
  * ---------------------------------------------------------
  */
-export const openCameraSafely = async () => {
+export const openStoryCamera = async () => {
   try {
-    const allowed = await requestCameraPermission();
+    const cameraAllowed = await requestCameraPermission();
 
-    if (!allowed) {
-      console.log(
-        "Camera was not opened because permission was denied."
-      );
+    if (!cameraAllowed) {
+      console.log("Story camera permission denied.");
       return null;
     }
 
-    const microphoneAllowed =
-      await requestMicrophonePermission();
+    const microphoneAllowed = await requestMicrophonePermission();
 
     if (!microphoneAllowed) {
-      console.log(
-        "Microphone permission is not available."
-      );
-
-      // We don't launch video recording if microphone
-      // permission is unavailable.
+      console.log("Story microphone permission denied.");
       return null;
     }
 
@@ -222,6 +216,9 @@ export const openCameraSafely = async () => {
       mediaTypes: ["images", "videos"],
       allowsEditing: false,
       quality: 1,
+
+      // Story videos only
+      videoMaxDuration: 15,
     });
 
     if (result.canceled) {
@@ -230,45 +227,65 @@ export const openCameraSafely = async () => {
 
     return result;
   } catch (error) {
-    console.log("Camera launch error:", error);
+    console.log("Story camera error:", error);
     return null;
   }
 };
 
+
 /**
  * ---------------------------------------------------------
- * OPEN GALLERY SAFELY
+ * OPEN STORY GALLERY SAFELY
  *
- * This checks gallery permission AGAIN when gallery
- * is actually used.
+ * Story-specific gallery.
+ * Gallery videos longer than 15 seconds are rejected.
  * ---------------------------------------------------------
  */
-export const openGallerySafely = async () => {
+export const openStoryGallery = async () => {
   try {
     const allowed = await requestGalleryPermission();
 
     if (!allowed) {
-      console.log(
-        "Gallery was not opened because permission was denied."
-      );
+      console.log("Story gallery permission denied.");
       return null;
     }
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images", "videos"],
-        allowsEditing: false,
-        quality: 1,
-        selectionLimit: 1,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images", "videos"],
+      allowsEditing: false,
+      quality: 1,
+      selectionLimit: 1,
+    });
 
     if (result.canceled) {
       return null;
     }
 
+    const asset = result.assets?.[0];
+
+    if (!asset) {
+      return null;
+    }
+
+    // Only Story videos have the 15-second restriction.
+    if (
+      asset.type === "video" &&
+      asset.duration &&
+      asset.duration > 15000
+    ) {
+      console.log(
+        "Selected Story video is longer than 15 seconds."
+      );
+
+      return {
+        ...result,
+        storyVideoTooLong: true,
+      };
+    }
+
     return result;
   } catch (error) {
-    console.log("Gallery launch error:", error);
+    console.log("Story gallery error:", error);
     return null;
   }
 };

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import {
   View,
   Text,
@@ -16,50 +17,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../src/theme";
 
 import {
-  openCameraSafely,
-  openGallerySafely,
+  openStoryCamera,
+  openStoryGallery,
 } from "../../src/services/permissions";
+
+import {
+  addStory,
+  getUserActiveStoryCount,
+  getStoryLimits,
+} from "../../src/services/StoryStore";
 
 export default function AddStoryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const [selectedPet, setSelectedPet] = useState("Bruno");
+
   const [caption, setCaption] = useState("");
-  const [selectedImage, setSelectedImage] = useState(null);
 
-  // ==========================================
-  // CAMERA
-  // ==========================================
-  const handleOpenCamera = async () => {
-  const result = await openCameraSafely();
+  const [selectedMedia, setSelectedMedia] =
+    useState(null);
 
-  if (!result) {
-    return;
-  }
-
-  if (result.assets?.length > 0) {
-    setSelectedImage(result.assets[0].uri);
-  }
-};
-  // ==========================================
-  // GALLERY
-  // ==========================================
-
-const handleOpenGallery = async () => {
-  const result = await openGallerySafely();
-
-  if (!result) {
-    return;
-  }
-
-  if (result.assets?.length > 0) {
-    setSelectedImage(result.assets[0].uri);
-  }
-};
-
-  // ==========================================
-  // PETS
-  // ==========================================
+  const [mediaType, setMediaType] = useState(null);
 
   const pets = [
     {
@@ -68,6 +46,7 @@ const handleOpenGallery = async () => {
       image:
         "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400",
     },
+
     {
       id: "2",
       name: "Luna",
@@ -80,24 +59,109 @@ const handleOpenGallery = async () => {
     (pet) => pet.name === selectedPet
   );
 
-  // ==========================================
-  // CREATE STORY
-  // ==========================================
+  /**
+   * -----------------------------------------
+   * CAMERA
+   * -----------------------------------------
+   *
+   * Can return image OR video.
+   */
+  const handleOpenCamera = async () => {
+    const result = await openStoryCamera();
 
+    if (!result) {
+      return;
+    }
+
+    const asset = result.assets?.[0];
+
+    if (!asset) {
+      return;
+    }
+
+    setSelectedMedia(asset.uri);
+
+    if (asset.type === "video") {
+      setMediaType("video");
+    } else {
+      setMediaType("image");
+    }
+  };
+
+  /**
+   * -----------------------------------------
+   * GALLERY
+   * -----------------------------------------
+   */
+  const handleOpenGallery = async () => {
+    const result = await openStoryGallery();
+
+    if (!result) {
+      return;
+    }
+
+    const asset = result.assets?.[0];
+
+    if (!asset) {
+      return;
+    }
+
+    setSelectedMedia(asset.uri);
+
+    if (asset.type === "video") {
+      setMediaType("video");
+    } else {
+      setMediaType("image");
+    }
+  };
+
+  /**
+   * -----------------------------------------
+   * CREATE STORY
+   * -----------------------------------------
+   */
   const handleCreateStory = () => {
-    if (!selectedImage) {
+    if (!selectedMedia) {
       Alert.alert(
-        "Add a photo",
-        "Please take a photo or choose one from your gallery before posting your story."
+        "Add media",
+        "Please take a photo/video or choose one from your gallery."
       );
 
       return;
     }
 
-    Alert.alert(
-      "Story Ready",
-      "Your story will be posted here once Firebase is connected."
-    );
+    const currentCount =
+      getUserActiveStoryCount("current-user");
+
+    const limits = getStoryLimits();
+
+    const newStory = addStory({
+      userId: "current-user",
+      userName: "You",
+      petName: selectedPet,
+      petImage: selectedPetData?.image,
+
+      mediaType,
+      mediaUri: selectedMedia,
+
+      caption,
+    });
+
+    if (currentCount >= limits.maxStories) {
+      Alert.alert(
+        "Story limit reached",
+        "You already had 10 active stories. Your oldest story has been removed and this new story is now active."
+      );
+    } else {
+      Alert.alert(
+        "Story Posted",
+        "Your story is active for 24 hours."
+      );
+    }
+
+    console.log("Created story:", newStory);
+
+    navigation.goBack();
   };
 
   return (
@@ -112,9 +176,7 @@ const handleOpenGallery = async () => {
         backgroundColor={colors.background}
       />
 
-      {/* ==========================================
-          HEADER
-      ========================================== */}
+      {/* HEADER */}
 
       <View className="flex-row items-center justify-between border-b border-border px-4 pb-4 pt-3">
         <Pressable
@@ -141,31 +203,55 @@ const handleOpenGallery = async () => {
           paddingBottom: 30 + insets.bottom,
         }}
       >
-        {/* ==========================================
-            STORY PREVIEW
-        ========================================== */}
+        {/* STORY PREVIEW */}
 
         <View className="px-4 pt-5">
-          <Text className="mb-3 text-[15px] font-bold text-white">
-            Story Preview
-          </Text>
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-[15px] font-bold text-white">
+              Story Preview
+            </Text>
+
+            <View className="rounded-full border border-border bg-surface px-3 py-1.5">
+              <Text className="text-[11px] font-bold text-text-secondary">
+                24 hours
+              </Text>
+            </View>
+          </View>
 
           <View className="h-[390px] overflow-hidden rounded-[24px] bg-surface">
-            <Image
-              source={{
-                uri:
-                  selectedImage ||
-                  selectedPetData?.image,
-              }}
-              className="h-full w-full"
-              resizeMode="cover"
-            />
+            {selectedMedia && mediaType === "video" ? (
+              <View className="h-full w-full items-center justify-center bg-black">
+                <Ionicons
+                  name="play-circle"
+                  size={64}
+                  color={colors.white}
+                />
 
-            {/* DARK OVERLAY */}
+                <Text className="mt-3 text-[14px] font-bold text-white">
+                  Video selected
+                </Text>
+
+                <Text className="mt-1 text-[12px] text-text-secondary">
+                  Video audio will be preserved
+                </Text>
+              </View>
+            ) : (
+              <Image
+                source={{
+                  uri:
+                    selectedMedia ||
+                    selectedPetData?.image,
+                }}
+                className="h-full w-full"
+                resizeMode="cover"
+              />
+            )}
+
+            {/* OVERLAY */}
 
             <View className="absolute inset-0 bg-black/20" />
 
-            {/* PET INFORMATION */}
+            {/* PET */}
 
             <View className="absolute left-4 right-4 top-4 flex-row items-center">
               <View className="h-11 w-11 overflow-hidden rounded-full border-2 border-primary">
@@ -182,10 +268,30 @@ const handleOpenGallery = async () => {
                 <Text className="text-[14px] font-bold text-white">
                   {selectedPet}
                 </Text>
+
+                <Text className="mt-0.5 text-[11px] text-text-muted">
+                  Story • 24h
+                </Text>
               </View>
             </View>
 
-            {/* CAPTION PREVIEW */}
+            {/* VIDEO INDICATOR */}
+
+            {mediaType === "video" && (
+              <View className="absolute right-4 top-4 flex-row items-center rounded-full bg-black/60 px-3 py-2">
+                <Ionicons
+                  name="videocam"
+                  size={16}
+                  color={colors.white}
+                />
+
+                <Text className="ml-1.5 text-[11px] font-bold text-white">
+                  Video + Sound
+                </Text>
+              </View>
+            )}
+
+            {/* CAPTION */}
 
             {caption.length > 0 && (
               <View className="absolute bottom-7 left-4 right-4">
@@ -197,7 +303,7 @@ const handleOpenGallery = async () => {
               </View>
             )}
 
-            {/* PAW DECORATION */}
+            {/* PAW */}
 
             <View className="absolute bottom-5 right-5 h-11 w-11 items-center justify-center rounded-full bg-primary">
               <Ionicons
@@ -209,9 +315,7 @@ const handleOpenGallery = async () => {
           </View>
         </View>
 
-        {/* ==========================================
-            CHOOSE PET
-        ========================================== */}
+        {/* CHOOSE PET */}
 
         <View className="px-4 pt-7">
           <Text className="mb-3 text-[15px] font-bold text-white">
@@ -267,14 +371,18 @@ const handleOpenGallery = async () => {
           </ScrollView>
         </View>
 
-        {/* ==========================================
-            MEDIA OPTIONS
-        ========================================== */}
+        {/* MEDIA OPTIONS */}
 
         <View className="px-4 pt-7">
-          <Text className="mb-3 text-[15px] font-bold text-white">
-            Add to your story
-          </Text>
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-[15px] font-bold text-white">
+              Add to your story
+            </Text>
+
+            <Text className="text-[11px] font-semibold text-text-secondary">
+              Photo or video
+            </Text>
+          </View>
 
           <View className="flex-row">
             {/* CAMERA */}
@@ -296,7 +404,7 @@ const handleOpenGallery = async () => {
               </Text>
 
               <Text className="mt-1 text-[11px] text-secondary">
-                Take a new photo
+                Photo or video
               </Text>
             </Pressable>
 
@@ -319,15 +427,13 @@ const handleOpenGallery = async () => {
               </Text>
 
               <Text className="mt-1 text-[11px] text-secondary">
-                Choose a photo
+                Photo or video
               </Text>
             </Pressable>
           </View>
         </View>
 
-        {/* ==========================================
-            CAPTION
-        ========================================== */}
+        {/* CAPTION */}
 
         <View className="px-4 pt-7">
           <Text className="mb-3 text-[15px] font-bold text-white">
@@ -352,9 +458,32 @@ const handleOpenGallery = async () => {
           </View>
         </View>
 
-        {/* ==========================================
-            CREATE STORY
-        ========================================== */}
+        {/* STORY LIMIT */}
+
+        <View className="mx-4 mt-7 rounded-2xl border border-border bg-surface px-4 py-4">
+          <View className="flex-row items-center">
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-elevated">
+              <Ionicons
+                name="albums-outline"
+                size={20}
+                color={colors.primary}
+              />
+            </View>
+
+            <View className="ml-3 flex-1">
+              <Text className="text-[13px] font-bold text-white">
+                Story limit
+              </Text>
+
+              <Text className="mt-1 text-[11px] text-text-secondary">
+                You can have up to 10 active stories.
+                Stories disappear after 24 hours.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* CREATE STORY */}
 
         <View
           className="px-4 pt-7"
