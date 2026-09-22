@@ -5,9 +5,9 @@ import { Camera } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * NOTIFICATIONS
- * ---------------------------------------------------------
+ * =========================================================
  */
 export const requestNotificationPermission = async () => {
   try {
@@ -24,9 +24,7 @@ export const requestNotificationPermission = async () => {
     }
 
     if (!current.canAskAgain) {
-      console.log(
-        "Notification permission cannot be requested again."
-      );
+      console.log("Notification permission cannot be requested again.");
       return false;
     }
 
@@ -37,14 +35,15 @@ export const requestNotificationPermission = async () => {
     return result.granted;
   } catch (error) {
     console.log("Notification permission error:", error);
+
     return false;
   }
 };
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * CAMERA
- * ---------------------------------------------------------
+ * =========================================================
  */
 export const requestCameraPermission = async () => {
   try {
@@ -61,9 +60,8 @@ export const requestCameraPermission = async () => {
     }
 
     if (!current.canAskAgain) {
-      console.log(
-        "Camera permission cannot be requested again."
-      );
+      console.log("Camera permission cannot be requested again.");
+
       return false;
     }
 
@@ -74,14 +72,15 @@ export const requestCameraPermission = async () => {
     return result.granted;
   } catch (error) {
     console.log("Camera permission error:", error);
+
     return false;
   }
 };
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * MICROPHONE
- * ---------------------------------------------------------
+ * =========================================================
  */
 export const requestMicrophonePermission = async () => {
   try {
@@ -98,9 +97,8 @@ export const requestMicrophonePermission = async () => {
     }
 
     if (!current.canAskAgain) {
-      console.log(
-        "Microphone permission cannot be requested again."
-      );
+      console.log("Microphone permission cannot be requested again.");
+
       return false;
     }
 
@@ -111,14 +109,15 @@ export const requestMicrophonePermission = async () => {
     return result.granted;
   } catch (error) {
     console.log("Microphone permission error:", error);
+
     return false;
   }
 };
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * GALLERY / PHOTOS
- * ---------------------------------------------------------
+ * =========================================================
  */
 export const requestGalleryPermission = async () => {
   try {
@@ -126,8 +125,7 @@ export const requestGalleryPermission = async () => {
       return false;
     }
 
-    const current =
-      await ImagePicker.getMediaLibraryPermissionsAsync();
+    const current = await ImagePicker.getMediaLibraryPermissionsAsync();
 
     console.log("Current gallery permission:", current);
 
@@ -136,35 +134,23 @@ export const requestGalleryPermission = async () => {
     }
 
     if (!current.canAskAgain) {
-      console.log(
-        "Gallery permission cannot be requested again."
-      );
+      console.log("Gallery permission cannot be requested again.");
+
       return false;
     }
 
-    const result =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const result = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     console.log("Gallery permission result:", result);
 
     return result.granted;
   } catch (error) {
     console.log("Gallery permission error:", error);
+
     return false;
   }
 };
 
-/**
- * ---------------------------------------------------------
- * STARTUP PERMISSIONS
- *
- * Order:
- * 1. Notifications
- * 2. Camera
- * 3. Microphone
- * 4. Gallery
- * ---------------------------------------------------------
- */
 export const requestStartupPermissions = async () => {
   try {
     if (Platform.OS === "web") {
@@ -187,37 +173,42 @@ export const requestStartupPermissions = async () => {
   }
 };
 
-
-/**
- * ---------------------------------------------------------
- * OPEN STORY CAMERA SAFELY
- *
- * Story-specific camera.
- * Video maximum = 15 seconds.
- * ---------------------------------------------------------
- */
 export const openStoryCamera = async () => {
   try {
+    /**
+     * Camera permission
+     */
     const cameraAllowed = await requestCameraPermission();
 
     if (!cameraAllowed) {
       console.log("Story camera permission denied.");
+
       return null;
     }
 
+    /**
+     * Microphone permission
+     *
+     * Required for video recording.
+     */
     const microphoneAllowed = await requestMicrophonePermission();
 
     if (!microphoneAllowed) {
       console.log("Story microphone permission denied.");
+
       return null;
     }
 
+    /**
+     * Open native camera.
+     */
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images", "videos"],
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+
       allowsEditing: false,
+
       quality: 1,
 
-      // Story videos only
       videoMaxDuration: 15,
     });
 
@@ -225,35 +216,105 @@ export const openStoryCamera = async () => {
       return null;
     }
 
-    return result;
+    const asset = result.assets?.[0];
+
+    if (!asset) {
+      return null;
+    }
+
+    /**
+     * -----------------------------------------------------
+     * PHOTO
+     * -----------------------------------------------------
+     */
+    if (asset.type === "image") {
+      console.log("Story camera captured photo.");
+
+      return {
+        ...result,
+
+        assets: [
+          {
+            ...asset,
+            type: "image",
+          },
+        ],
+      };
+    }
+
+    /**
+     * -----------------------------------------------------
+     * VIDEO
+     * -----------------------------------------------------
+     */
+    if (asset.type === "video") {
+      const duration = asset.duration;
+
+      console.log("Captured story video duration:", duration);
+
+      if (typeof duration === "number" && duration > 15000) {
+        console.log("Camera returned a video longer than 15 seconds.");
+
+        return {
+          ...result,
+          storyVideoTooLong: true,
+          assets: [
+            {
+              ...asset,
+              type: "video",
+            },
+          ],
+        };
+      }
+
+      console.log("Story camera captured video.");
+
+      return {
+        ...result,
+
+        assets: [
+          {
+            ...asset,
+            type: "video",
+          },
+        ],
+      };
+    }
+
+    return null;
   } catch (error) {
     console.log("Story camera error:", error);
+
     return null;
   }
 };
 
-
 /**
- * ---------------------------------------------------------
- * OPEN STORY GALLERY SAFELY
- *
- * Story-specific gallery.
- * Gallery videos longer than 15 seconds are rejected.
- * ---------------------------------------------------------
+=======================================================
  */
 export const openStoryGallery = async () => {
   try {
+    /**
+     * Gallery permission
+     */
     const allowed = await requestGalleryPermission();
 
     if (!allowed) {
       console.log("Story gallery permission denied.");
+
       return null;
     }
 
+    /**
+     * Open native gallery.
+     */
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images", "videos"],
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+
       allowsEditing: false,
+
       quality: 1,
+
       selectionLimit: 1,
     });
 
@@ -267,25 +328,47 @@ export const openStoryGallery = async () => {
       return null;
     }
 
-    // Only Story videos have the 15-second restriction.
-    if (
-      asset.type === "video" &&
-      asset.duration &&
-      asset.duration > 15000
-    ) {
-      console.log(
-        "Selected Story video is longer than 15 seconds."
-      );
+    /**
+     * -----------------------------------------------------
+     * PHOTO
+     * -----------------------------------------------------
+     */
+    if (asset.type === "image") {
+      console.log("Story gallery selected photo.");
 
       return {
         ...result,
-        storyVideoTooLong: true,
+
+        assets: [
+          {
+            ...asset,
+            type: "image",
+          },
+        ],
       };
     }
 
-    return result;
+    if (asset.type === "video") {
+      console.log("Story gallery selected video.");
+
+      console.log("Gallery video duration:", asset.duration);
+
+      return {
+        ...result,
+
+        assets: [
+          {
+            ...asset,
+            type: "video",
+          },
+        ],
+      };
+    }
+
+    return null;
   } catch (error) {
     console.log("Story gallery error:", error);
+
     return null;
   }
 };
