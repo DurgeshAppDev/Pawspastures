@@ -17,8 +17,10 @@ import AddStoryScreen from "./AddStoryScreen";
 import StoryViewerScreen from "./StoryViewerScreen";
 import MediaEditorScreen from "./MediaEditorScreen";
 
+
 //Profile to other screens import
 import NewPostScreen from "./NewPostScreen";
+import SettingsScreen from "./SettingsScreen";
 
 import { colors } from "../../src/theme";
 
@@ -124,6 +126,7 @@ export default function MainLayout() {
       <Stack.Screen name="AddStory" component={AddStoryScreen} />
       <Stack.Screen name="MediaEditor" component={MediaEditorScreen} />
       <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
+      <Stack.Screen name="Settings"  component={SettingsScreen}/>
     </Stack.Navigator>
   );
 }

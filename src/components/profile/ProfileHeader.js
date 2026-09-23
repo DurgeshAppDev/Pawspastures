@@ -1,10 +1,13 @@
-import React from "react";
-import { View, Text, Pressable } from "react-native";
+import React, { use } from "react";
+import { View, Text, Pressable, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 import { colors } from "../../theme";
 
-export default function ProfileHeader({ onSettingsPress }) {
+export default function ProfileHeader() {
+const navigation = useNavigation();
+
   return (
     <View className="flex-row items-center justify-between px-4 py-3.5">
       {/* Left */}
@@ -27,7 +30,7 @@ export default function ProfileHeader({ onSettingsPress }) {
 
       {/* Settings */}
       <Pressable
-        onPress={onSettingsPress}
+        onPress={( )=> navigation.navigate("Settings")}
         className="h-10 w-10 items-center justify-center rounded-xl bg-surface"
       >
         <Ionicons
