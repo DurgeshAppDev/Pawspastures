@@ -1,24 +1,22 @@
 import React from "react";
 import { Platform } from "react-native";
+
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// bottom tabs screens
+// Bottom tab screens
 import HomeScreen from "../(tabs)/HomeScreen";
 import DiscoverScreen from "../(tabs)/DiscoverScreen";
 import CommunitiesScreen from "../(tabs)/CommunitiesScreen";
 import ShopScreen from "../(tabs)/ShopScreen";
 import ProfileScreen from "../(tabs)/ProfileScreen";
 
-//home nav to other screens import
+// Home / Profile / other screens
 import AddStoryScreen from "./AddStoryScreen";
 import StoryViewerScreen from "./StoryViewerScreen";
 import MediaEditorScreen from "./MediaEditorScreen";
-
-
-//Profile to other screens import
 import NewPostScreen from "./NewPostScreen";
 import SettingsScreen from "./SettingsScreen";
 
@@ -27,6 +25,14 @@ import { colors } from "../../src/theme";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+/**
+ * Main application bottom tabs.
+ *
+ * IMPORTANT:
+ * Onboarding screens are NOT included here.
+ * App.js decides whether the user belongs to
+ * Auth, Onboarding, or Main.
+ */
 function MainTabs() {
   const insets = useSafeAreaInsets();
 
@@ -54,6 +60,7 @@ function MainTabs() {
 
           shadowOpacity: 0.15,
           shadowRadius: 8,
+
           shadowOffset: {
             width: 0,
             height: -2,
@@ -63,6 +70,7 @@ function MainTabs() {
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: "600",
+
           marginBottom: Platform.OS === "android" ? 2 : 0,
         },
 
@@ -111,6 +119,25 @@ function MainTabs() {
   );
 }
 
+/**
+ * Main application navigation.
+ *
+ * Structure:
+ *
+ * MainLayout
+ * ├── MainTabs
+ * │   ├── Home
+ * │   ├── Discover
+ * │   ├── Communities
+ * │   ├── Shop
+ * │   └── Profile
+ * │
+ * ├── NewPost
+ * ├── AddStory
+ * ├── MediaEditor
+ * ├── StoryViewer
+ * └── Settings
+ */
 export default function MainLayout() {
   return (
     <Stack.Navigator
@@ -124,9 +151,12 @@ export default function MainLayout() {
       <Stack.Screen name="NewPost" component={NewPostScreen} />
 
       <Stack.Screen name="AddStory" component={AddStoryScreen} />
+
       <Stack.Screen name="MediaEditor" component={MediaEditorScreen} />
+
       <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
-      <Stack.Screen name="Settings"  component={SettingsScreen}/>
+
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }
