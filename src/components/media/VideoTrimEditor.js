@@ -9,8 +9,8 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -18,34 +18,27 @@ import {
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 
+import { showEditor } from "react-native-video-trim";
+
 import { colors } from "../../theme";
 
 const MAX_DURATION = 15;
 
 /**
- * Reusable video trimming component.
+ * Native Android / iOS video trimming editor.
+ *
+ * Web uses:
+ * videoTrimEditor.web.js
  *
  * Props:
- *
  * videoUri
- *   Original video URI.
- *
  * maxDuration
- *   Maximum allowed selected duration.
- *   Default = 15 seconds.
- *
  * onCancel
- *   Called when user cancels.
- *
  * onTrimComplete
- *   Called after the video has been trimmed.
- *
  * onError
- *   Called if trimming fails.
- *
  * showCancel
- *   Show/hide cancel button.
  */
+
 export default function VideoTrimEditor({
   videoUri,
   maxDuration = MAX_DURATION,
@@ -60,12 +53,14 @@ export default function VideoTrimEditor({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const playerRef = useRef(null);
+  const playbackTimeoutRef = useRef(null);
 
-  /**
-   * -------------------------------------------------------
+  /*
+   * ============================================================
    * VIDEO PLAYER
-   * -------------------------------------------------------
+   * ============================================================
    */
+
   const player = useVideoPlayer(videoUri, (videoPlayer) => {
     playerRef.current = videoPlayer;
 
@@ -73,32 +68,44 @@ export default function VideoTrimEditor({
     videoPlayer.loop = false;
   });
 
-  /**
-   * -------------------------------------------------------
-   * GET VIDEO DURATION
-   * -------------------------------------------------------
+  /*
+   * ============================================================
+   * VIDEO DURATION
+   * ============================================================
    */
+
   useEffect(() => {
     if (!player) {
       return;
     }
 
-    try {
-      const duration = player.duration;
+    const checkDuration = () => {
+      try {
+        const duration = Number(player.duration);
 
-      if (duration && duration > 0) {
-        setVideoDuration(duration);
+        if (Number.isFinite(duration) && duration > 0) {
+          setVideoDuration(duration);
+        }
+      } catch (error) {
+        console.log("Video duration error:", error);
       }
-    } catch (error) {
-      console.log("Video duration error:", error);
-    }
+    };
+
+    checkDuration();
+
+    const timer = setInterval(checkDuration, 300);
+
+    return () => {
+      clearInterval(timer);
+    };
   }, [player]);
 
-  /**
-   * -------------------------------------------------------
+  /*
+   * ============================================================
    * SAFE MAXIMUM
-   * -------------------------------------------------------
+   * ============================================================
    */
+
   const allowedDuration = useMemo(() => {
     if (!videoDuration) {
       return maxDuration;
@@ -107,17 +114,6 @@ export default function VideoTrimEditor({
     return Math.min(videoDuration, maxDuration);
   }, [videoDuration, maxDuration]);
 
-  /**
-   * Maximum possible starting position.
-   *
-   * Example:
-   *
-   * Video = 45 sec
-   * Selection = 15 sec
-   *
-   * Start can be:
-   * 0 → 30 sec
-   */
   const maxStart = useMemo(() => {
     if (!videoDuration) {
       return 0;
@@ -126,11 +122,12 @@ export default function VideoTrimEditor({
     return Math.max(0, videoDuration - allowedDuration);
   }, [videoDuration, allowedDuration]);
 
-  /**
-   * -------------------------------------------------------
+  /*
+   * ============================================================
    * FORMAT TIME
-   * -------------------------------------------------------
+   * ============================================================
    */
+
   const formatTime = useCallback((seconds) => {
     if (!Number.isFinite(seconds)) {
       return "00:00";
@@ -143,40 +140,39 @@ export default function VideoTrimEditor({
     const remainingSeconds = totalSeconds % 60;
 
     return `${String(minutes).padStart(2, "0")}:${String(
-      remainingSeconds
+      remainingSeconds,
     ).padStart(2, "0")}`;
   }, []);
 
-  /**
-   * -------------------------------------------------------
-   * SET START POSITION
-   * -------------------------------------------------------
+  /*
+   * ============================================================
+   * START POSITION
+   * ============================================================
    */
+
   const changeStartPosition = useCallback(
     (value) => {
-      const newStart = Math.max(
-        0,
-        Math.min(value, maxStart)
-      );
+      const newStart = Math.max(0, Math.min(value, maxStart));
 
       setStartTime(newStart);
 
       try {
-        playerRef.current?.seekBy?.(
-          newStart - (playerRef.current?.currentTime || 0)
-        );
+        const currentTime = Number(playerRef.current?.currentTime) || 0;
+
+        playerRef.current?.seekBy?.(newStart - currentTime);
       } catch (error) {
         console.log("Video seek error:", error);
       }
     },
-    [maxStart]
+    [maxStart],
   );
 
-  /**
-   * -------------------------------------------------------
+  /*
+   * ============================================================
    * PLAY SELECTED SECTION
-   * -------------------------------------------------------
+   * ============================================================
    */
+
   const playSelection = useCallback(() => {
     const currentPlayer = playerRef.current;
 
@@ -185,17 +181,20 @@ export default function VideoTrimEditor({
     }
 
     try {
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+      }
+
       currentPlayer.currentTime = startTime;
+
       currentPlayer.play();
 
       setIsPlaying(true);
 
-      /**
-       * Stop playback after selected duration.
-       */
-      const timeout = setTimeout(() => {
+      playbackTimeoutRef.current = setTimeout(() => {
         try {
           currentPlayer.pause();
+
           currentPlayer.currentTime = startTime;
         } catch (error) {
           console.log("Playback stop error:", error);
@@ -203,51 +202,65 @@ export default function VideoTrimEditor({
 
         setIsPlaying(false);
       }, allowedDuration * 1000);
-
-      return () => clearTimeout(timeout);
     } catch (error) {
       console.log("Selection playback error:", error);
+
+      setIsPlaying(false);
     }
   }, [startTime, allowedDuration]);
 
-  /**
-   * -------------------------------------------------------
+  /*
+   * ============================================================
    * PAUSE
-   * -------------------------------------------------------
+   * ============================================================
    */
+
   const pauseVideo = useCallback(() => {
     try {
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+      }
+
       playerRef.current?.pause();
+
       setIsPlaying(false);
     } catch (error) {
       console.log("Pause error:", error);
     }
   }, []);
 
-  /**
-   * -------------------------------------------------------
-   * PROCESS VIDEO
+  useEffect(() => {
+    return () => {
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  /*
+   * ============================================================
+   * NATIVE TRIM
    *
-   * IMPORTANT:
-   *
-   * This function is intentionally separated from the UI.
-   *
-   * Replace the processing implementation with the native
-   * video trimming library used by the project.
-   * -------------------------------------------------------
+   * Android / iOS only.
+   * ============================================================
    */
+
   const processVideo = useCallback(async () => {
     if (!videoUri) {
+      return;
+    }
+
+    if (Platform.OS === "web") {
       return;
     }
 
     try {
       setIsProcessing(true);
 
-      /**
-       * If original video is already within the limit,
-       * there is no need to physically trim it.
+      /*
+       * No physical trimming is required when already <= 15 sec.
        */
+
       if (videoDuration <= maxDuration) {
         onTrimComplete?.({
           uri: videoUri,
@@ -260,84 +273,183 @@ export default function VideoTrimEditor({
         return;
       }
 
-      /**
-       * ---------------------------------------------------
-       * VIDEO TRIMMING PLACEHOLDER
-       * ---------------------------------------------------
+      /*
+       * react-native-video-trim handles the actual
+       * native video processing.
        *
-       * The native trimming operation should create a new
-       * video file here.
-       *
-       * For example:
-       *
-       * const trimmedUri = await trimVideo(
-       *   videoUri,
-       *   startTime,
-       *   allowedDuration
-       * );
-       *
-       * Then:
-       *
-       * onTrimComplete({
-       *   uri: trimmedUri,
-       *   startTime,
-       *   endTime: startTime + allowedDuration,
-       *   duration: allowedDuration,
-       *   originalUri: videoUri,
-       * });
+       * The result is delivered through the native
+       * VideoTrim event listener below.
        */
 
-      Alert.alert(
-        "Video trimmer",
-        "The trimming UI is ready. Connect the native video processing module here to create the trimmed video file."
-      );
+      showEditor(videoUri, {
+        type: "video",
+
+        maxDuration: maxDuration * 1000,
+
+        minDuration: 1000,
+
+        theme: "dark",
+
+        headerText: "Trim Story Video",
+
+        cancelButtonText: "Cancel",
+
+        saveButtonText: "Use Video",
+
+        trimmingText: "Preparing your story video...",
+
+        durationFormat: "mm:ss",
+
+        enablePreciseTrimming: true,
+
+        enableCancelTrimming: true,
+
+        closeWhenFinish: true,
+
+        saveToPhoto: false,
+
+        openShareSheetOnFinish: false,
+
+        enableEditTools: false,
+
+        startTime: Math.round(startTime * 1000),
+      });
     } catch (error) {
-      console.log("Video trimming error:", error);
+      console.log("Native video trimming error:", error);
+
+      setIsProcessing(false);
 
       onError?.(error);
-    } finally {
-      setIsProcessing(false);
+
+      Alert.alert(
+        "Unable to trim video",
+        "The video trimming tool could not be opened.",
+      );
     }
   }, [
     videoUri,
     videoDuration,
     maxDuration,
     startTime,
-    allowedDuration,
     onTrimComplete,
     onError,
   ]);
 
-  /**
-   * -------------------------------------------------------
-   * VIDEO DURATION NOT READY
-   * -------------------------------------------------------
+  /*
+   * ============================================================
+   * NATIVE TRIM RESULT
+   * ============================================================
    */
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    let subscription;
+
+    try {
+      const { NativeEventEmitter, NativeModules } = require("react-native");
+
+      const VideoTrim = NativeModules.VideoTrim;
+
+      if (!VideoTrim) {
+        console.log("VideoTrim native module is unavailable.");
+
+        return;
+      }
+
+      const emitter = new NativeEventEmitter(VideoTrim);
+
+      subscription = emitter.addListener("VideoTrim", (event) => {
+        if (!event) {
+          return;
+        }
+
+        if (event.name === "onFinishTrimming") {
+          const outputPath = event.outputPath;
+
+          if (!outputPath) {
+            setIsProcessing(false);
+
+            onError?.(
+              new Error("Video trimming finished without an output file."),
+            );
+
+            return;
+          }
+
+          const duration = Math.min(allowedDuration, maxDuration);
+
+          setIsProcessing(false);
+
+          onTrimComplete?.({
+            uri: outputPath,
+            startTime,
+            endTime: startTime + duration,
+            duration,
+            originalUri: videoUri,
+          });
+
+          return;
+        }
+
+        if (event.name === "onCancel" || event.name === "onCancelTrimming") {
+          setIsProcessing(false);
+
+          return;
+        }
+
+        if (event.name === "onError") {
+          console.log("Native video trim error:", event);
+
+          setIsProcessing(false);
+
+          const error = new Error(event.message || "Unable to trim the video.");
+
+          onError?.(error);
+        }
+      });
+    } catch (error) {
+      console.log("Video trim listener error:", error);
+    }
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [
+    allowedDuration,
+    maxDuration,
+    startTime,
+    videoUri,
+    onTrimComplete,
+    onError,
+  ]);
+
+  /*
+   * ============================================================
+   * LOADING
+   * ============================================================
+   */
+
   if (!videoDuration) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator
-          size="large"
-          color={colors.primary}
-        />
+      <View className="flex-1 items-center justify-center bg-background px-5">
+        <ActivityIndicator size="large" color={colors.primary} />
 
-        <Text style={styles.loadingText}>
+        <Text className="mt-3 text-[15px] text-text-secondary">
           Loading video...
         </Text>
       </View>
     );
   }
 
-  /**
-   * -------------------------------------------------------
+  /*
+   * ============================================================
    * TIMELINE
-   *
-   * This is a simple reusable timeline.
-   *
-   * Later this can be replaced with thumbnail frames
-   * without changing the parent API.
-   * -------------------------------------------------------
+   * ============================================================
    */
+
   const timelineWidth = 320;
 
   const selectionWidth =
@@ -346,27 +458,29 @@ export default function VideoTrimEditor({
       : timelineWidth;
 
   const selectionLeft =
-    videoDuration > 0
-      ? (startTime / videoDuration) * timelineWidth
-      : 0;
+    videoDuration > 0 ? (startTime / videoDuration) * timelineWidth : 0;
+
+  /*
+   * ============================================================
+   * UI
+   * ============================================================
+   */
 
   return (
-    <View style={styles.container}>
-      {/* ------------------------------------------------ */}
-      {/* VIDEO PREVIEW */}
-      {/* ------------------------------------------------ */}
+    <View className="flex-1 bg-background p-4">
+      {/* VIDEO */}
 
-      <View style={styles.videoContainer}>
+      <View className="relative h-[390px] w-full overflow-hidden rounded-[18px] bg-surface">
         <VideoView
           player={player}
-          style={styles.video}
+          className="h-full w-full"
           contentFit="contain"
           nativeControls={false}
         />
 
         <Pressable
           onPress={isPlaying ? pauseVideo : playSelection}
-          style={styles.playButton}
+          className="absolute left-1/2 top-1/2 h-[58px] w-[58px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/65"
         >
           <Ionicons
             name={isPlaying ? "pause" : "play"}
@@ -376,185 +490,128 @@ export default function VideoTrimEditor({
         </Pressable>
       </View>
 
-      {/* ------------------------------------------------ */}
       {/* TITLE */}
-      {/* ------------------------------------------------ */}
 
-      <View style={styles.titleRow}>
-        <View>
-          <Text style={styles.title}>
+      <View className="mt-5 flex-row items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-[20px] font-bold text-text-primary">
             Trim your video
           </Text>
 
-          <Text style={styles.subtitle}>
+          <Text className="mt-1 text-[14px] text-text-secondary">
             Select up to {maxDuration} seconds
           </Text>
         </View>
 
-        <View style={styles.durationBadge}>
-          <Text style={styles.durationText}>
+        <View className="rounded-[10px] bg-surface-elevated px-3 py-2">
+          <Text className="text-[14px] font-bold text-primary">
             {formatTime(allowedDuration)}
           </Text>
         </View>
       </View>
 
-      {/* ------------------------------------------------ */}
       {/* TIMELINE */}
-      {/* ------------------------------------------------ */}
 
-      <View style={styles.timelineWrapper}>
+      <View className="mt-7 items-center">
         <View
-          style={[
-            styles.timeline,
-            {
-              width: timelineWidth,
-            },
-          ]}
+          style={{
+            width: timelineWidth,
+            height: 54,
+          }}
+          className="relative justify-center"
         >
-          {/* Background */}
-          <View style={styles.timelineBackground} />
+          <View className="absolute left-0 right-0 h-[42px] rounded-[10px] bg-surface-elevated" />
 
-          {/* Selected region */}
           <View
-            style={[
-              styles.selectedRegion,
-              {
-                left: selectionLeft,
-                width: selectionWidth,
-              },
-            ]}
+            style={{
+              left: selectionLeft,
+              width: selectionWidth,
+            }}
+            className="absolute top-[-2px] h-[46px] rounded-[10px] border-2 border-primary bg-primary/15"
           />
 
-          {/* Start handle */}
           <View
-            style={[
-              styles.handle,
-              {
-                left: selectionLeft - 7,
-              },
-            ]}
+            style={{
+              left: selectionLeft - 7,
+            }}
+            className="absolute top-[-5px] h-[56px] w-[14px] rounded-[7px] bg-primary"
           />
 
-          {/* End handle */}
           <View
-            style={[
-              styles.handle,
-              {
-                left:
-                  selectionLeft +
-                  selectionWidth -
-                  7,
-              },
-            ]}
+            style={{
+              left: selectionLeft + selectionWidth - 7,
+            }}
+            className="absolute top-[-5px] h-[56px] w-[14px] rounded-[7px] bg-primary"
           />
         </View>
       </View>
 
-      {/* ------------------------------------------------ */}
-      {/* START POSITION CONTROLS */}
-      {/* ------------------------------------------------ */}
+      {/* POSITION CONTROLS */}
 
-      <View style={styles.controlRow}>
+      <View className="mt-4 flex-row items-center justify-center">
         <Pressable
           disabled={startTime <= 0}
-          onPress={() =>
-            changeStartPosition(
-              Math.max(0, startTime - 1)
-            )
-          }
-          style={[
-            styles.controlButton,
-            startTime <= 0 && styles.disabledButton,
-          ]}
+          onPress={() => changeStartPosition(Math.max(0, startTime - 1))}
+          className={`h-[44px] w-[44px] items-center justify-center rounded-full bg-surface-elevated ${
+            startTime <= 0 ? "opacity-35" : ""
+          }`}
         >
-          <Ionicons
-            name="chevron-back"
-            size={22}
-            color={colors.white}
-          />
+          <Ionicons name="chevron-back" size={22} color={colors.white} />
         </Pressable>
 
-        <View style={styles.timeInfo}>
-          <Text style={styles.timeLabel}>
-            Start
-          </Text>
+        <View className="mx-5 min-w-[190px] flex-row items-center justify-center">
+          <Text className="text-[12px] text-text-secondary">Start</Text>
 
-          <Text style={styles.timeValue}>
+          <Text className="ml-2 text-[15px] font-bold text-text-primary">
             {formatTime(startTime)}
           </Text>
 
-          <Text style={styles.timeSeparator}>
-            →
-          </Text>
+          <Text className="mx-3 text-text-secondary">→</Text>
 
-          <Text style={styles.timeLabel}>
-            End
-          </Text>
+          <Text className="text-[12px] text-text-secondary">End</Text>
 
-          <Text style={styles.timeValue}>
-            {formatTime(
-              Math.min(
-                videoDuration,
-                startTime + allowedDuration
-              )
-            )}
+          <Text className="ml-2 text-[15px] font-bold text-text-primary">
+            {formatTime(Math.min(videoDuration, startTime + allowedDuration))}
           </Text>
         </View>
 
         <Pressable
           disabled={startTime >= maxStart}
-          onPress={() =>
-            changeStartPosition(
-              Math.min(
-                maxStart,
-                startTime + 1
-              )
-            )
-          }
-          style={[
-            styles.controlButton,
-            startTime >= maxStart &&
-              styles.disabledButton,
-          ]}
+          onPress={() => changeStartPosition(Math.min(maxStart, startTime + 1))}
+          className={`h-[44px] w-[44px] items-center justify-center rounded-full bg-surface-elevated ${
+            startTime >= maxStart ? "opacity-35" : ""
+          }`}
         >
-          <Ionicons
-            name="chevron-forward"
-            size={22}
-            color={colors.white}
-          />
+          <Ionicons name="chevron-forward" size={22} color={colors.white} />
         </Pressable>
       </View>
 
-      {/* ------------------------------------------------ */}
-      {/* ORIGINAL VIDEO INFO */}
-      {/* ------------------------------------------------ */}
+      {/* INFORMATION */}
 
-      <View style={styles.infoBox}>
+      <View className="mt-5 flex-row items-center rounded-[12px] bg-surface-elevated p-[13px]">
         <Ionicons
           name="information-circle-outline"
           size={20}
           color={colors.accent}
         />
 
-        <Text style={styles.infoText}>
+        <Text className="ml-2.5 text-[13px] leading-[19px] text-text-secondary">
           Original video: {formatTime(videoDuration)}
           {"\n"}
           Selected: {formatTime(allowedDuration)}
         </Text>
       </View>
 
-      {/* ------------------------------------------------ */}
       {/* ACTIONS */}
-      {/* ------------------------------------------------ */}
 
-      <View style={styles.actionRow}>
+      <View className="mt-[22px] flex-row gap-3">
         {showCancel && (
           <Pressable
             onPress={onCancel}
             disabled={isProcessing}
-            style={styles.cancelButton}
+            className="h-[50px] flex-1 items-center justify-center rounded-[13px] border border-border"
           >
-            <Text style={styles.cancelText}>
+            <Text className="text-[16px] font-semibold text-text-primary">
               Cancel
             </Text>
           </Pressable>
@@ -563,25 +620,17 @@ export default function VideoTrimEditor({
         <Pressable
           onPress={processVideo}
           disabled={isProcessing}
-          style={[
-            styles.useButton,
-            isProcessing && styles.processingButton,
-          ]}
+          className={`h-[50px] flex-[1.5] flex-row items-center justify-center rounded-[13px] bg-primary ${
+            isProcessing ? "opacity-70" : ""
+          }`}
         >
           {isProcessing ? (
-            <ActivityIndicator
-              size="small"
-              color={colors.white}
-            />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <>
-              <Ionicons
-                name="checkmark"
-                size={22}
-                color={colors.white}
-              />
+              <Ionicons name="checkmark" size={22} color={colors.white} />
 
-              <Text style={styles.useText}>
+              <Text className="ml-2 text-[16px] font-bold text-white">
                 Use Video
               </Text>
             </>
@@ -591,224 +640,3 @@ export default function VideoTrimEditor({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: 16,
-  },
-
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-  },
-
-  loadingText: {
-    marginTop: 12,
-    color: colors["text-secondary"],
-    fontSize: 15,
-  },
-
-  videoContainer: {
-    width: "100%",
-    height: 390,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: colors.surface,
-    position: "relative",
-  },
-
-  video: {
-    width: "100%",
-    height: "100%",
-  },
-
-  playButton: {
-    position: "absolute",
-    alignSelf: "center",
-    top: "45%",
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.65)",
-  },
-
-  titleRow: {
-    marginTop: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  title: {
-    color: colors["text-primary"],
-    fontSize: 20,
-    fontWeight: "700",
-  },
-
-  subtitle: {
-    marginTop: 5,
-    color: colors["text-secondary"],
-    fontSize: 14,
-  },
-
-  durationBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: colors["surface-elevated"],
-  },
-
-  durationText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  timelineWrapper: {
-    marginTop: 28,
-    alignItems: "center",
-  },
-
-  timeline: {
-    height: 54,
-    position: "relative",
-    justifyContent: "center",
-  },
-
-  timelineBackground: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: colors["surface-elevated"],
-  },
-
-  selectedRegion: {
-    position: "absolute",
-    height: 46,
-    top: -2,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: "rgba(254,91,0,0.15)",
-  },
-
-  handle: {
-    position: "absolute",
-    top: -5,
-    width: 14,
-    height: 56,
-    borderRadius: 7,
-    backgroundColor: colors.primary,
-  },
-
-  controlRow: {
-    marginTop: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  controlButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors["surface-elevated"],
-  },
-
-  disabledButton: {
-    opacity: 0.35,
-  },
-
-  timeInfo: {
-    minWidth: 190,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
-
-  timeLabel: {
-    color: colors["text-secondary"],
-    fontSize: 12,
-  },
-
-  timeValue: {
-    color: colors["text-primary"],
-    fontSize: 15,
-    fontWeight: "700",
-  },
-
-  timeSeparator: {
-    color: colors["text-secondary"],
-    marginHorizontal: 4,
-  },
-
-  infoBox: {
-    marginTop: 20,
-    padding: 13,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors["surface-elevated"],
-  },
-
-  infoText: {
-    marginLeft: 10,
-    color: colors["text-secondary"],
-    fontSize: 13,
-    lineHeight: 19,
-  },
-
-  actionRow: {
-    marginTop: 22,
-    flexDirection: "row",
-    gap: 12,
-  },
-
-  cancelButton: {
-    flex: 1,
-    height: 50,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  cancelText: {
-    color: colors["text-primary"],
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
-  useButton: {
-    flex: 1.5,
-    height: 50,
-    borderRadius: 13,
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-
-  processingButton: {
-    opacity: 0.7,
-  },
-
-  useText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-});

@@ -14,38 +14,83 @@ import {
   View,
 } from "react-native";
 
-import { VideoView, useVideoPlayer } from "expo-video";
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
 
-import { showEditor } from "react-native-video-trim";
-
 import { colors } from "../../src/theme";
 
 import MediaTextToolbar from "../../src/components/media/MediaTextToolbar";
 
-const PREVIEW_HEIGHT = 500;
+const isWeb = Platform.OS === "web";
 
 const MAX_STORY_VIDEO_DURATION = 15;
+
+const PREVIEW_HEIGHT = 500;
 
 const STORY_DRAFT_KEY = "@paws_pastures_story_draft";
 
 const POST_DRAFT_KEY = "@paws_pastures_post_draft";
 
-/* ======================================================= */
-/* VIDEO PREVIEW */
-/* ======================================================= */
-
 function EditorVideoPreview({ uri }) {
-  const player = useVideoPlayer(uri, (videoPlayer) => {
-    videoPlayer.loop = true;
-    videoPlayer.muted = false;
-  });
+  const [VideoView, setVideoView] = useState(null);
+  const [useVideoPlayer, setUseVideoPlayer] = useState(null);
+  const [player, setPlayer] = useState(null);
 
+  useEffect(() => {
+    let mounted = true;
+
+    if (Platform.OS === "web") {
+      return undefined;
+    }
+
+    try {
+      const ExpoVideo = require("expo-video");
+
+      if (!mounted) {
+        return undefined;
+      }
+
+      setVideoView(() => ExpoVideo.VideoView);
+      setUseVideoPlayer(() => ExpoVideo.useVideoPlayer);
+    } catch (error) {
+      console.log("expo-video load error:", error);
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /*
+   * Create native player after expo-video has loaded.
+   */
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    if (!useVideoPlayer || !uri) {
+      return;
+    }
+
+    try {
+      const createdPlayer = useVideoPlayer(uri, (videoPlayer) => {
+        videoPlayer.loop = true;
+        videoPlayer.muted = false;
+      });
+
+      setPlayer(createdPlayer);
+    } catch (error) {
+      console.log("Video player creation error:", error);
+    }
+  }, [useVideoPlayer, uri]);
+
+  /*
+   * Play native video.
+   */
   useEffect(() => {
     if (!player) {
       return;
@@ -54,26 +99,67 @@ function EditorVideoPreview({ uri }) {
     try {
       player.play();
     } catch (error) {
-      console.log("Editor video error:", error);
+      console.log("Video play error:", error);
     }
   }, [player]);
 
+  /*
+   * WEB
+   */
+  if (Platform.OS === "web") {
+    return (
+      <video
+        src={uri}
+        autoPlay
+        loop
+        muted={false}
+        controls
+        playsInline
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+        }}
+      />
+    );
+  }
+
+  /*
+   * NATIVE
+   */
+  if (VideoView && player) {
+    return (
+      <VideoView
+        player={player}
+        style={{
+          width: "100%",
+          height: "100%",
+        }}
+        contentFit="cover"
+        nativeControls
+      />
+    );
+  }
+
   return (
-    <VideoView
-      player={player}
-      style={{
-        width: "100%",
-        height: "100%",
-      }}
-      contentFit="cover"
-      nativeControls
-    />
+    <View className="flex-1 items-center justify-center bg-surface">
+      <Ionicons
+        name="videocam-outline"
+        size={42}
+        color={colors["text-secondary"]}
+      />
+
+      <Text className="mt-3 text-[14px] text-text-secondary">
+        Preparing video...
+      </Text>
+    </View>
   );
 }
 
-/* ======================================================= */
-/* MAIN SCREEN */
-/* ======================================================= */
+/* =========================================================
+   MAIN SCREEN
+   ========================================================= */
 
 export default function MediaEditorScreen({ navigation, route }) {
   const params = route?.params || {};
@@ -87,10 +173,6 @@ export default function MediaEditorScreen({ navigation, route }) {
   const petName = params.petName || "Your pet";
 
   const petImage = params.petImage || null;
-
-  /* ===================================================== */
-  /* TEXT STATE */
-  /* ===================================================== */
 
   const [text, setText] = useState(params.overlayText || "");
 
@@ -111,7 +193,7 @@ export default function MediaEditorScreen({ navigation, route }) {
   const [textAlign, setTextAlign] = useState(params.textAlign || "left");
 
   const initialPosition = params.textPosition || {
-    x: 50,
+    x: 40,
     y: 210,
   };
 
@@ -121,9 +203,9 @@ export default function MediaEditorScreen({ navigation, route }) {
 
   const [showTextInput, setShowTextInput] = useState(false);
 
-  /* ===================================================== */
-  /* VIDEO */
-  /* ===================================================== */
+  /* =======================================================
+     VIDEO
+     ======================================================= */
 
   const [videoDuration, setVideoDuration] = useState(
     params.videoDuration || null,
@@ -131,21 +213,25 @@ export default function MediaEditorScreen({ navigation, route }) {
 
   const [checkingVideo, setCheckingVideo] = useState(mediaType === "video");
 
-  const [trimOpened, setTrimOpened] = useState(false);
+  const [isTrimming, setIsTrimming] = useState(false);
 
-  /* ===================================================== */
-  /* OTHER */
-  /* ===================================================== */
+  /* =======================================================
+     OTHER STATE
+     ======================================================= */
 
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const [isPosting, setIsPosting] = useState(false);
 
-  /* ===================================================== */
-  /* BACK BUTTON */
-  /* ===================================================== */
+  /* =======================================================
+     BACK BUTTON
+     ======================================================= */
 
   useEffect(() => {
+    if (Platform.OS === "web") {
+      return undefined;
+    }
+
     const handleBack = () => {
       navigation.goBack();
       return true;
@@ -159,54 +245,143 @@ export default function MediaEditorScreen({ navigation, route }) {
     return () => subscription.remove();
   }, [navigation]);
 
-  /* ===================================================== */
-  /* VIDEO PLAYER */
-  /* ===================================================== */
-
-  const videoPlayer = useVideoPlayer(
-    mediaType === "video" ? mediaUri : null,
-    (player) => {
-      player.loop = true;
-      player.muted = false;
-    },
-  );
-
-  /* ===================================================== */
-  /* VIDEO DURATION */
-  /* ===================================================== */
+  /* =======================================================
+     VIDEO DURATION
+     ======================================================= */
 
   useEffect(() => {
-    if (mediaType !== "video" || !videoPlayer) {
+    if (mediaType !== "video") {
       setCheckingVideo(false);
-      return;
+      return undefined;
     }
 
-    const check = () => {
-      try {
-        const duration = videoPlayer.duration;
+    /*
+     * If the previous screen already supplied duration,
+     * use it immediately.
+     */
+    if (params.videoDuration && Number.isFinite(Number(params.videoDuration))) {
+      setVideoDuration(Number(params.videoDuration));
 
-        if (duration && Number.isFinite(duration) && duration > 0) {
-          setVideoDuration(duration);
+      setCheckingVideo(false);
+
+      return undefined;
+    }
+
+    /*
+     * Web
+     */
+    if (Platform.OS === "web") {
+      let mounted = true;
+
+      const timer = setTimeout(() => {
+        if (!mounted) {
+          return;
+        }
+
+        /*
+         * We cannot reliably inspect an arbitrary local
+         * file URI here without creating a video element.
+         */
+        try {
+          const video = document.createElement("video");
+
+          video.preload = "metadata";
+
+          video.onloadedmetadata = () => {
+            if (!mounted) {
+              return;
+            }
+
+            if (Number.isFinite(video.duration) && video.duration > 0) {
+              setVideoDuration(video.duration);
+            }
+
+            setCheckingVideo(false);
+          };
+
+          video.onerror = () => {
+            if (mounted) {
+              setCheckingVideo(false);
+            }
+          };
+
+          video.src = mediaUri;
+        } catch (error) {
+          console.log("Web video duration error:", error);
 
           setCheckingVideo(false);
         }
-      } catch (error) {
-        console.log("Duration error:", error);
+      }, 100);
 
+      return () => {
+        mounted = false;
+        clearTimeout(timer);
+      };
+    }
+
+    /*
+     * Native
+     *
+     * Load expo-video dynamically so Web does not attempt
+     * to initialize the native module.
+     */
+    let mounted = true;
+
+    let player = null;
+
+    try {
+      const ExpoVideo = require("expo-video");
+
+      if (!ExpoVideo || !ExpoVideo.useVideoPlayer) {
         setCheckingVideo(false);
+
+        return undefined;
       }
-    };
 
-    check();
+      player = ExpoVideo.useVideoPlayer(mediaUri, (videoPlayer) => {
+        videoPlayer.muted = true;
+      });
 
-    const timer = setInterval(check, 500);
+      const checkDuration = () => {
+        try {
+          const duration = player?.duration;
 
-    return () => clearInterval(timer);
-  }, [videoPlayer, mediaType, mediaUri]);
+          if (duration && Number.isFinite(duration) && duration > 0) {
+            if (mounted) {
+              setVideoDuration(duration);
 
-  /* ===================================================== */
-  /* DRAG TEXT */
-  /* ===================================================== */
+              setCheckingVideo(false);
+            }
+          }
+        } catch (error) {
+          console.log("Native duration error:", error);
+
+          if (mounted) {
+            setCheckingVideo(false);
+          }
+        }
+      };
+
+      checkDuration();
+
+      const timer = setInterval(checkDuration, 500);
+
+      return () => {
+        mounted = false;
+        clearInterval(timer);
+      };
+    } catch (error) {
+      console.log("expo-video duration load error:", error);
+
+      setCheckingVideo(false);
+
+      return undefined;
+    }
+  }, [mediaUri, mediaType, params.videoDuration]);
+
+  /* =======================================================
+     DRAG TEXT
+     ======================================================= */
 
   const panResponder = useRef(
     PanResponder.create({
@@ -223,11 +398,11 @@ export default function MediaEditorScreen({ navigation, route }) {
 
         const nextY = textPositionRef.current.y + gesture.dy;
 
-        const safeX = Math.max(0, Math.min(nextX, 260));
+        const safeX = Math.max(0, Math.min(nextX, 280));
 
         const safeY = Math.max(
           0,
-          Math.min(nextY, PREVIEW_HEIGHT - selectedTextSize - 20),
+          Math.min(nextY, PREVIEW_HEIGHT - selectedTextSize - 30),
         );
 
         setTextPosition({
@@ -242,29 +417,99 @@ export default function MediaEditorScreen({ navigation, route }) {
     }),
   ).current;
 
-  /* ===================================================== */
-  /* TRIM RESULT LISTENER */
-  /* ===================================================== */
-
+  /*
+   * Keep ref synchronized with state.
+   */
   useEffect(() => {
-    if (Platform.OS === "web") {
+    textPositionRef.current = textPosition;
+  }, [textPosition]);
+
+  /* =======================================================
+     TRIM VIDEO
+     ======================================================= */
+
+  const openVideoTrimmer = useCallback(() => {
+    if (!mediaUri) {
       return;
     }
 
-    let subscription;
+    /*
+     * Web
+     *
+     * There is intentionally no native trimmer here.
+     * The native VideoTrim module must never be loaded
+     * on Web.
+     */
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Video trimming",
+        "Video trimming is currently available on Android and iOS. On Web, please select a video that is already 15 seconds or shorter.",
+      );
 
+      return;
+    }
+
+    /*
+     * Native dynamic import.
+     */
     try {
-      const { NativeEventEmitter, NativeModules } = require("react-native");
+      setIsTrimming(true);
 
-      const VideoTrim = NativeModules.VideoTrim;
+      const ReactNative = require("react-native");
+
+      const NativeModules = ReactNative.NativeModules;
+
+      const NativeEventEmitter = ReactNative.NativeEventEmitter;
+
+      /*
+       * VideoTrim must be installed and available
+       * in the native development build.
+       */
+      const VideoTrim = NativeModules?.VideoTrim;
 
       if (!VideoTrim) {
+        setIsTrimming(false);
+
+        Alert.alert(
+          "Video trimmer unavailable",
+          "The native video trimming module is not installed in the current development build.",
+        );
+
         return;
       }
 
+      /*
+       * Different versions of react-native-video-trim
+       * expose showEditor differently.
+       */
+      let showEditorFunction = null;
+
+      try {
+        const VideoTrimPackage = require("react-native-video-trim");
+
+        showEditorFunction =
+          VideoTrimPackage?.showEditor || VideoTrimPackage?.default?.showEditor;
+      } catch (error) {
+        console.log("VideoTrim package load error:", error);
+      }
+
+      if (typeof showEditorFunction !== "function") {
+        setIsTrimming(false);
+
+        Alert.alert(
+          "Video trimmer unavailable",
+          "The video trimming package is missing or its native API is unavailable.",
+        );
+
+        return;
+      }
+
+      /*
+       * Listen for trimming result.
+       */
       const emitter = new NativeEventEmitter(VideoTrim);
 
-      subscription = emitter.addListener("VideoTrim", (event) => {
+      const subscription = emitter.addListener("VideoTrim", (event) => {
         if (!event) {
           return;
         }
@@ -272,36 +517,40 @@ export default function MediaEditorScreen({ navigation, route }) {
         if (event.name === "onFinishTrimming") {
           const outputPath = event.outputPath;
 
-          if (!outputPath) {
-            return;
+          if (outputPath) {
+            setMediaUri(outputPath);
+
+            setVideoDuration(MAX_STORY_VIDEO_DURATION);
+
+            setIsTrimming(false);
+
+            Alert.alert(
+              "Video trimmed",
+              "Your video is now ready for your story.",
+            );
+          } else {
+            setIsTrimming(false);
           }
 
-          console.log("Trim completed:", outputPath);
+          subscription.remove();
 
-          setMediaUri(outputPath);
-
-          setVideoDuration(MAX_STORY_VIDEO_DURATION);
-
-          setTrimOpened(false);
-
-          Alert.alert(
-            "Video trimmed",
-            "Your video is now ready for your story.",
-          );
+          return;
         }
 
-        if (event.name === "onCancel") {
-          setTrimOpened(false);
-        }
+        if (event.name === "onCancel" || event.name === "onCancelTrimming") {
+          setIsTrimming(false);
 
-        if (event.name === "onCancelTrimming") {
-          setTrimOpened(false);
+          subscription.remove();
+
+          return;
         }
 
         if (event.name === "onError") {
           console.log("Video trim error:", event);
 
-          setTrimOpened(false);
+          setIsTrimming(false);
+
+          subscription.remove();
 
           Alert.alert(
             "Trim failed",
@@ -309,33 +558,15 @@ export default function MediaEditorScreen({ navigation, route }) {
           );
         }
       });
-    } catch (error) {
-      console.log("Video trim listener error:", error);
-    }
 
-    return () => {
-      subscription?.remove();
-    };
-  }, []);
-
-  /* ===================================================== */
-  /* OPEN TRIMMER */
-  /* ===================================================== */
-
-  const openVideoTrimmer = useCallback(() => {
-    if (!mediaUri) {
-      return;
-    }
-
-    try {
-      setTrimOpened(true);
-
-      showEditor(mediaUri, {
+      /*
+       * Open native editor.
+       *
+       * maxDuration is milliseconds.
+       */
+      showEditorFunction(mediaUri, {
         type: "video",
 
-        /*
-         * 15 seconds in milliseconds.
-         */
         maxDuration: 15000,
 
         minDuration: 1000,
@@ -367,7 +598,7 @@ export default function MediaEditorScreen({ navigation, route }) {
     } catch (error) {
       console.log("Unable to open video trimmer:", error);
 
-      setTrimOpened(false);
+      setIsTrimming(false);
 
       Alert.alert(
         "Unable to trim video",
@@ -376,48 +607,34 @@ export default function MediaEditorScreen({ navigation, route }) {
     }
   }, [mediaUri]);
 
-  /* ===================================================== */
-  /* ADD TEXT */
-  /* ===================================================== */
+  /* =======================================================
+     ADD TEXT
+     ======================================================= */
 
-  const handleAddText = () => {
+  const handleAddText = useCallback(() => {
     setShowTextInput(true);
-  };
+  }, []);
 
-  /* ===================================================== */
-  /* EDITOR DATA */
-  /* ===================================================== */
+  /* =======================================================
+     EDITOR DATA
+     ======================================================= */
 
   const createEditorData = useCallback(
     () => ({
       mode,
-
       mediaUri,
-
       mediaType,
-
       petName,
-
       petImage,
-
       overlayText: text,
-
       textColor: selectedTextColor,
-
       textSize: selectedTextSize,
-
       textPosition: textPositionRef.current,
-
       textBold: isBold,
-
       textItalic: isItalic,
-
       textUnderline: isUnderline,
-
       textAlign,
-
       videoDuration,
-
       updatedAt: Date.now(),
     }),
     [
@@ -437,11 +654,11 @@ export default function MediaEditorScreen({ navigation, route }) {
     ],
   );
 
-  /* ===================================================== */
-  /* SAVE DRAFT */
-  /* ===================================================== */
+  /* =======================================================
+     SAVE DRAFT
+     ======================================================= */
 
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = useCallback(async () => {
     try {
       setIsSavingDraft(true);
 
@@ -457,13 +674,13 @@ export default function MediaEditorScreen({ navigation, route }) {
     } finally {
       setIsSavingDraft(false);
     }
-  };
+  }, [mode, createEditorData]);
 
-  /* ===================================================== */
-  /* POST */
-  /* ===================================================== */
+  /* =======================================================
+     POST
+     ======================================================= */
 
-  const handlePost = async () => {
+  const handlePost = useCallback(async () => {
     if (isPosting) {
       return;
     }
@@ -475,16 +692,13 @@ export default function MediaEditorScreen({ navigation, route }) {
     }
 
     /*
-     * IMPORTANT:
-     *
-     * This check happens again when the
-     * user actually presses Post.
+     * Story video duration validation.
      */
     if (
       mode === "story" &&
       mediaType === "video" &&
       videoDuration &&
-      videoDuration > 15
+      videoDuration > MAX_STORY_VIDEO_DURATION
     ) {
       Alert.alert(
         "Video is too long",
@@ -506,6 +720,10 @@ export default function MediaEditorScreen({ navigation, route }) {
 
     try {
       setIsPosting(true);
+
+      /* ==========================================
+           STORY
+           ========================================== */
 
       if (mode === "story") {
         const { addStory } = require("../../src/services/StoryStore");
@@ -550,7 +768,9 @@ export default function MediaEditorScreen({ navigation, route }) {
           [
             {
               text: "OK",
-              onPress: () => navigation.navigate("MainTabs"),
+              onPress: () => {
+                navigation.navigate("MainTabs");
+              },
             },
           ],
         );
@@ -558,9 +778,9 @@ export default function MediaEditorScreen({ navigation, route }) {
         return;
       }
 
-      /* ------------------------------------- */
-      /* POST MODE */
-      /* ------------------------------------- */
+      /* ==========================================
+           POST
+           ========================================== */
 
       navigation.navigate("NewPost", {
         editedPost: createEditorData(),
@@ -568,15 +788,69 @@ export default function MediaEditorScreen({ navigation, route }) {
     } catch (error) {
       console.log("Post error:", error);
 
-      Alert.alert("Unable to post", "Something went wrong while posting.");
+      Alert.alert(
+        "Unable to post",
+        error?.message || "Something went wrong while posting.",
+      );
     } finally {
       setIsPosting(false);
     }
-  };
+  }, [
+    isPosting,
+    mediaUri,
+    mode,
+    mediaType,
+    videoDuration,
+    petName,
+    petImage,
+    text,
+    selectedTextColor,
+    selectedTextSize,
+    isBold,
+    isItalic,
+    isUnderline,
+    textAlign,
+    navigation,
+    openVideoTrimmer,
+    createEditorData,
+  ]);
 
-  /* ===================================================== */
-  /* SCREEN */
-  /* ===================================================== */
+  /* =======================================================
+     NO MEDIA
+     ======================================================= */
+
+  if (!mediaUri) {
+    return (
+      <SafeAreaView className="flex-1 bg-background">
+        <View className="flex-1 items-center justify-center px-6">
+          <Ionicons
+            name="images-outline"
+            size={54}
+            color={colors["text-secondary"]}
+          />
+
+          <Text className="mt-4 text-center text-[18px] font-bold text-text-primary">
+            No media selected
+          </Text>
+
+          <Text className="mt-2 text-center text-[14px] text-text-secondary">
+            Please select a photo or video before opening the editor.
+          </Text>
+
+          <Pressable
+            onPress={() => navigation.goBack()}
+            className="mt-6 h-[48px] min-w-[150px] items-center justify-center rounded-[13px] bg-primary px-5"
+          >
+            <Text className="text-[15px] font-bold text-white">Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  /* =======================================================
+     SCREEN
+     ======================================================= */
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "bottom"]}>
@@ -584,9 +858,9 @@ export default function MediaEditorScreen({ navigation, route }) {
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* =========================================== */}
-        {/* HEADER */}
-        {/* =========================================== */}
+        {/* =================================================
+            HEADER
+            ================================================= */}
 
         <View className="h-[58px] flex-row items-center justify-between border-b border-border px-4">
           <Pressable
@@ -611,21 +885,21 @@ export default function MediaEditorScreen({ navigation, route }) {
           </Pressable>
         </View>
 
-        {/* =========================================== */}
-        {/* CONTENT */}
-        {/* =========================================== */}
+        {/* =================================================
+            CONTENT
+            ================================================= */}
 
         <ScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
-            paddingBottom: 30,
+            paddingBottom: 35,
           }}
         >
-          {/* ========================================= */}
-          {/* PREVIEW */}
-          {/* ========================================= */}
+          {/* =================================================
+              MEDIA PREVIEW
+              ================================================= */}
 
           <View
             className="mx-3 mt-3 overflow-hidden rounded-[18px] bg-surface"
@@ -645,9 +919,9 @@ export default function MediaEditorScreen({ navigation, route }) {
               />
             )}
 
-            {/* ===================================== */}
-            {/* DRAGGABLE TEXT */}
-            {/* ===================================== */}
+            {/* ===============================================
+                DRAGGABLE TEXT
+                =============================================== */}
 
             {text.length > 0 && (
               <View
@@ -692,46 +966,85 @@ export default function MediaEditorScreen({ navigation, route }) {
             )}
           </View>
 
-          {/* ========================================= */}
-          {/* LONG VIDEO WARNING */}
-          {/* ========================================= */}
+          {/* =================================================
+              VIDEO INFORMATION
+              ================================================= */}
 
-          {mode === "story" && mediaType === "video" && videoDuration > 15 && (
-            <View className="mx-4 mt-4 rounded-[14px] border border-primary bg-surface p-4">
+          {mode === "story" && mediaType === "video" && (
+            <View className="mx-4 mt-4 rounded-[14px] border border-border bg-surface p-4">
               <View className="flex-row items-center">
                 <Ionicons
-                  name="warning-outline"
-                  size={24}
+                  name="videocam-outline"
+                  size={23}
                   color={colors.primary}
                 />
 
                 <View className="ml-3 flex-1">
                   <Text className="text-[15px] font-bold text-text-primary">
-                    Video is longer than 15 seconds
+                    Story video
                   </Text>
 
                   <Text className="mt-1 text-[13px] text-text-secondary">
-                    Trim the video before posting your story.
+                    Maximum duration: 15 seconds
                   </Text>
+
+                  {videoDuration ? (
+                    <Text className="mt-1 text-[13px] text-text-secondary">
+                      Current duration: {videoDuration.toFixed(1)}s
+                    </Text>
+                  ) : checkingVideo ? (
+                    <Text className="mt-1 text-[13px] text-text-secondary">
+                      Checking video duration...
+                    </Text>
+                  ) : null}
                 </View>
               </View>
-
-              <Pressable
-                onPress={openVideoTrimmer}
-                className="mt-3 h-[46px] flex-row items-center justify-center rounded-[11px] bg-primary"
-              >
-                <Ionicons name="cut-outline" size={21} color={colors.white} />
-
-                <Text className="ml-2 text-[14px] font-bold text-white">
-                  Trim Video
-                </Text>
-              </Pressable>
             </View>
           )}
 
-          {/* ========================================= */}
-          {/* TEXT INPUT */}
-          {/* ========================================= */}
+          {/* =================================================
+              LONG VIDEO WARNING
+              ================================================= */}
+
+          {mode === "story" &&
+            mediaType === "video" &&
+            videoDuration > MAX_STORY_VIDEO_DURATION && (
+              <View className="mx-4 mt-4 rounded-[14px] border border-primary bg-surface p-4">
+                <View className="flex-row items-center">
+                  <Ionicons
+                    name="warning-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+
+                  <View className="ml-3 flex-1">
+                    <Text className="text-[15px] font-bold text-text-primary">
+                      Video is longer than 15 seconds
+                    </Text>
+
+                    <Text className="mt-1 text-[13px] text-text-secondary">
+                      Trim the video before posting your story.
+                    </Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  onPress={openVideoTrimmer}
+                  disabled={isTrimming}
+                  className="mt-3 h-[46px] flex-row items-center justify-center rounded-[11px] bg-primary"
+                >
+                  <Ionicons name="cut-outline" size={21} color={colors.white} />
+
+                  <Text className="ml-2 text-[14px] font-bold text-white">
+                    {isTrimming ? "Opening..." : "Trim Video"}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+          {/* =================================================
+              TEXT INPUT
+              ================================================= */}
 
           {showTextInput && (
             <View className="mx-4 mt-4 rounded-[14px] border border-border bg-surface p-3">
@@ -756,18 +1069,20 @@ export default function MediaEditorScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* ========================================= */}
-          {/* TEXT TOOLBAR */}
-          {/* ========================================= */}
+          {/* =================================================
+              TEXT TOOLBAR
+              ================================================= */}
 
           <View className="px-4">
             <MediaTextToolbar
               onAddText={handleAddText}
 
               textColor={selectedTextColor}
+
               onTextColorChange={setSelectedTextColor}
 
               textSize={selectedTextSize}
+
               onTextSizeChange={setSelectedTextSize}
 
               isBold={isBold}
@@ -777,20 +1092,22 @@ export default function MediaEditorScreen({ navigation, route }) {
               onItalicChange={setIsItalic}
 
               isUnderline={isUnderline}
+
               onUnderlineChange={setIsUnderline}
 
               textAlign={textAlign}
+
               onTextAlignChange={setTextAlign}
             />
           </View>
 
-          {/* ========================================= */}
-          {/* POST */}
-          {/* ========================================= */}
+          {/* =================================================
+              POST BUTTON
+              ================================================= */}
 
           <Pressable
             onPress={handlePost}
-            disabled={isPosting || trimOpened || checkingVideo}
+            disabled={isPosting || isTrimming || checkingVideo}
             className="mx-4 mt-7 h-[52px] flex-row items-center justify-center rounded-[14px] bg-primary"
           >
             <Ionicons
@@ -807,6 +1124,22 @@ export default function MediaEditorScreen({ navigation, route }) {
                   : "Post"}
             </Text>
           </Pressable>
+
+          {/* =================================================
+              WEB TRIMMING INFORMATION
+              ================================================= */}
+
+          {Platform.OS === "web" &&
+            mode === "story" &&
+            mediaType === "video" &&
+            videoDuration > MAX_STORY_VIDEO_DURATION && (
+              <View className="mx-4 mt-3 rounded-[12px] bg-surface-elevated p-3">
+                <Text className="text-center text-[12px] text-text-secondary">
+                  Video trimming is available on Android and iOS. On Web, please
+                  choose a video that is already 15 seconds or shorter.
+                </Text>
+              </View>
+            )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

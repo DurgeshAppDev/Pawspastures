@@ -2,23 +2,29 @@ import React from "react";
 import { Platform } from "react-native";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+
 import { Ionicons } from "@expo/vector-icons";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Bottom tab screens
 import HomeScreen from "../(tabs)/HomeScreen";
 import DiscoverScreen from "../(tabs)/DiscoverScreen";
 import CommunitiesScreen from "../(tabs)/CommunitiesScreen";
 import ShopScreen from "../(tabs)/ShopScreen";
 import ProfileScreen from "../(tabs)/ProfileScreen";
 
-// Home / Profile / other screens
 import AddStoryScreen from "./AddStoryScreen";
 import StoryViewerScreen from "./StoryViewerScreen";
 import MediaEditorScreen from "./MediaEditorScreen";
 import NewPostScreen from "./NewPostScreen";
 import SettingsScreen from "./SettingsScreen";
+import CommunityChatScreen from "../../src/components/communities/CommunityChatScreen";
+import RecommendedGroupsScreen from "../../src/components/communities/RecommendedGroupsScreen";
+import UpcomingEventsScreen from "../../src/components/communities/UpcomingEventsScreen";
+
+import WebSidebar from "../../src/components/navigation/WebSidebar";
 
 import { colors } from "../../src/theme";
 
@@ -26,14 +32,9 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 /**
- * Main application bottom tabs.
- *
- * IMPORTANT:
- * Onboarding screens are NOT included here.
- * App.js decides whether the user belongs to
- * Auth, Onboarding, or Main.
+ * Native Android / iOS bottom navigation.
  */
-function MainTabs() {
+function MobileTabs() {
   const insets = useSafeAreaInsets();
 
   return (
@@ -120,24 +121,42 @@ function MainTabs() {
 }
 
 /**
- * Main application navigation.
+ * Web navigation.
  *
- * Structure:
- *
- * MainLayout
- * ├── MainTabs
- * │   ├── Home
- * │   ├── Discover
- * │   ├── Communities
- * │   ├── Shop
- * │   └── Profile
- * │
- * ├── NewPost
- * ├── AddStory
- * ├── MediaEditor
- * ├── StoryViewer
- * └── Settings
+ * Same React Navigation tab state,
+ * but replaces the bottom bar with a
+ * left-side hover sidebar.
  */
+function WebTabs() {
+  return (
+    <Tab.Navigator
+      initialRouteName="Home"
+      tabBar={(props) => <WebSidebar {...props} />}
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+
+      <Tab.Screen name="Discover" component={DiscoverScreen} />
+
+      <Tab.Screen name="Communities" component={CommunitiesScreen} />
+
+      <Tab.Screen name="Shop" component={ShopScreen} />
+
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
+function MainTabs() {
+  if (Platform.OS === "web") {
+    return <WebTabs />;
+  }
+
+  return <MobileTabs />;
+}
+
 export default function MainLayout() {
   return (
     <Stack.Navigator
@@ -157,6 +176,12 @@ export default function MainLayout() {
       <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
 
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
+
+      <Stack.Screen   name="RecommendedGroups"  component={RecommendedGroupsScreen}
+      />
+
+      <Stack.Screen name="UpcomingEvents" component={UpcomingEventsScreen} />
     </Stack.Navigator>
   );
 }

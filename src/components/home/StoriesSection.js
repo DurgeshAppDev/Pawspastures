@@ -1,4 +1,7 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import React from "react";
+
+import { View, Text, ScrollView, Pressable, Platform } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors } from "../../theme";
@@ -32,8 +35,19 @@ const stories = [
 ];
 
 export default function StoriesSection({ onStoryPress }) {
+  const isWeb = Platform.OS === "web";
+
   return (
-    <View className="border-y border-border bg-surface py-[15px]">
+    <View
+      className="border-y border-border bg-surface py-[15px]"
+      style={
+        isWeb
+          ? {
+              borderTopWidth: 0,
+            }
+          : undefined
+      }
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -45,31 +59,20 @@ export default function StoriesSection({ onStoryPress }) {
             onPress={() => onStoryPress?.(story)}
             className="mr-4 w-[66px] items-center"
           >
-            {/* Story Circle */}
             <View className="h-[62px] w-[62px] items-center justify-center rounded-full border-2 border-primary bg-surface-elevated">
               {story.isOwn ? (
                 <View className="h-[54px] w-[54px] items-center justify-center rounded-full bg-surface-icon">
-                  <Ionicons
-                    name="add"
-                    size={28}
-                    color={colors.primary}
-                  />
+                  <Ionicons name="add" size={28} color={colors.primary} />
                 </View>
               ) : (
-                <Ionicons
-                  name="paw"
-                  size={27}
-                  color={colors.primary}
-                />
+                <Ionicons name="paw" size={27} color={colors.primary} />
               )}
             </View>
 
             <Text
               numberOfLines={1}
               className={`mt-[7px] text-[12px] font-semibold ${
-                story.isOwn
-                  ? "text-text-primary"
-                  : "text-text-secondary"
+                story.isOwn ? "text-text-primary" : "text-text-secondary"
               }`}
             >
               {story.name}

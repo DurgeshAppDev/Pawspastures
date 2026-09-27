@@ -1,5 +1,9 @@
-import { View, Text, ScrollView, StatusBar } from "react-native";
+import React from "react";
+
+import { View, Text, ScrollView, StatusBar, Platform } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useNavigation } from "@react-navigation/native";
 
 import { colors } from "../../src/theme/colors";
@@ -45,6 +49,9 @@ const FEED = [
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+
+  const isWeb = Platform.OS === "web";
+
   return (
     <SafeAreaView
       edges={["top"]}
@@ -59,64 +66,93 @@ export default function HomeScreen() {
         translucent={false}
       />
 
-      {/* Header */}
-      <HomeHeader onNotificationsPress={() => {}} onMessagesPress={() => {}} />
-
-      {/* Feed */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: 110,
+      <View
+        className="flex-1"
+        style={{
+          alignItems: isWeb ? "center" : "stretch",
         }}
       >
-        {/* Stories */}
-        <StoriesSection
-          onStoryPress={(story) => {
-            if (story.isOwn) {
-              navigation.navigate("AddStory");
-            } else {
-              navigation.navigate("StoryViewer", { storyId: story.id });
-            }
-          }}
-        />
-        {/* Feed Heading */}
         <View
-          className="px-[18px] pb-3 pt-5"
+          className="flex-1 w-full"
           style={{
-            backgroundColor: colors.background,
+            maxWidth: isWeb ? 720 : undefined,
           }}
         >
-          <Text
-            style={{ color: colors.white }}
-            className="text-[18px] font-extrabold"
+          {/* HEADER */}
+
+          <HomeHeader
+            onNotificationsPress={() => {}}
+            onMessagesPress={() => {}}
+          />
+
+          {/* FEED */}
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: 110,
+            }}
           >
-            For you
-          </Text>
+            {/* STORIES */}
 
-          <Text
-            style={{ color: colors.secondary }}
-            className="mt-[3px] text-[13px]"
-          >
-            Discover moments from the pet community
-          </Text>
-        </View>
-
-        {/* Mixed Feed */}
-        {FEED.map((item) => {
-          if (item.type === "reel") {
-            return <ReelCard key={item.id} reel={item} />;
-          }
-
-          return (
-            <PostCard
-              key={item.id}
-              post={item}
-              onComment={() => {}}
-              onProfilePress={() => {}}
+            <StoriesSection
+              onStoryPress={(story) => {
+                if (story.isOwn) {
+                  navigation.navigate("AddStory");
+                } else {
+                  navigation.navigate("StoryViewer", {
+                    storyId: story.id,
+                  });
+                }
+              }}
             />
-          );
-        })}
-      </ScrollView>
+
+            {/* FEED HEADING */}
+
+            <View
+              className="px-[18px] pb-3 pt-5"
+              style={{
+                backgroundColor: colors.background,
+              }}
+            >
+              <Text
+                className="text-[18px] font-extrabold"
+                style={{
+                  color: colors.white,
+                }}
+              >
+                For you
+              </Text>
+
+              <Text
+                className="mt-[3px] text-[13px]"
+                style={{
+                  color: colors["text-secondary"],
+                }}
+              >
+                Discover moments from the pet community
+              </Text>
+            </View>
+
+            {/* MIXED FEED */}
+
+            {FEED.map((item) => {
+              if (item.type === "reel") {
+                return <ReelCard key={item.id} reel={item} />;
+              }
+
+              return (
+                <PostCard
+                  key={item.id}
+                  post={item}
+                  onComment={() => {}}
+                  onProfilePress={() => {}}
+                />
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }

@@ -9,16 +9,14 @@ import {
   Text,
   TextInput,
   View,
+  Platform,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
-
 import { getAuth } from "firebase/auth";
 
 import SelectDropdown from "../../src/components/SelectDropdown";
-
 import { saveUserDetails } from "../../src/services/OnboardingServices";
-
 import { colors } from "../../src/theme";
 
 const GENDER_OPTIONS = [
@@ -53,83 +51,63 @@ const INTEREST_OPTIONS = [
   {
     label: "Pet Lover",
     value: "pet_lover",
-    icon: "paw",
   },
   {
     label: "Photography",
     value: "photography",
-    icon: "camera",
   },
   {
     label: "Travel",
     value: "travel",
-    icon: "airplane",
   },
   {
     label: "Fitness",
     value: "fitness",
-    icon: "fitness",
   },
   {
     label: "Music",
     value: "music",
-    icon: "musical-notes",
   },
   {
     label: "Food",
     value: "food",
-    icon: "restaurant",
   },
   {
     label: "Nature",
     value: "nature",
-    icon: "leaf",
   },
   {
     label: "Gaming",
     value: "gaming",
-    icon: "game-controller",
   },
   {
     label: "Movies",
     value: "movies",
-    icon: "film",
   },
   {
     label: "Reading",
     value: "reading",
-    icon: "book",
   },
   {
     label: "Art",
     value: "art",
-    icon: "color-palette",
   },
   {
     label: "Cooking",
     value: "cooking",
-    icon: "restaurant-outline",
   },
 ];
 
-
-export default function AboutYouScreen({navigation}) {
+export default function AboutYouScreen({ navigation }) {
   const auth = getAuth();
 
   const [name, setName] = useState("");
-
   const [age, setAge] = useState("");
-
   const [gender, setGender] = useState("");
-
   const [location, setLocation] = useState("");
-
   const [bio, setBio] = useState("");
-
   const [profileImage, setProfileImage] = useState(null);
-
   const [interests, setInterests] = useState([]);
-
   const [saving, setSaving] = useState(false);
 
   const pickProfileImage = async () => {
@@ -146,11 +124,8 @@ export default function AboutYouScreen({navigation}) {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-
       allowsEditing: true,
-
       aspect: [1, 1],
-
       quality: 0.85,
     });
 
@@ -158,7 +133,6 @@ export default function AboutYouScreen({navigation}) {
       setProfileImage(result.assets[0].uri);
     }
   };
-
 
   const toggleInterest = (interest) => {
     setInterests((current) => {
@@ -172,96 +146,87 @@ export default function AboutYouScreen({navigation}) {
     });
   };
 
-
   const validateForm = () => {
     if (!name.trim()) {
       Alert.alert("Required", "Please enter your name.");
-
       return false;
     }
 
     if (!age) {
       Alert.alert("Required", "Please select your age.");
-
       return false;
     }
 
     if (!gender) {
       Alert.alert("Required", "Please select your gender.");
-
       return false;
     }
 
     if (!location.trim()) {
       Alert.alert("Required", "Please enter your location.");
-
       return false;
     }
 
     if (!bio.trim()) {
       Alert.alert("Required", "Please write a short bio.");
-
       return false;
     }
 
     if (interests.length === 0) {
       Alert.alert("Required", "Please select at least one interest.");
-
       return false;
     }
 
     return true;
   };
 
+  const handleFinish = async () => {
+    if (!validateForm()) {
+      return;
+    }
 
+    const userId = auth.currentUser?.uid;
 
-const handleFinish = async () => {
-  if (!validateForm()) {
-    return;
-  }
+    if (!userId) {
+      Alert.alert("Session expired", "Please login again.");
+      return;
+    }
 
-  const userId = auth.currentUser?.uid;
+    try {
+      setSaving(true);
 
-  if (!userId) {
-    Alert.alert("Session expired", "Please login again.");
-    return;
-  }
+      await saveUserDetails(userId, {
+        name: name.trim(),
+        age: Number(age),
+        gender,
+        location: location.trim(),
+        bio: bio.trim(),
+        interests,
+        profileImage: profileImage || null,
+      });
 
-  try {
-    setSaving(true);
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "Main",
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("ABOUT YOU SAVE ERROR:", error);
 
-    await saveUserDetails(userId, {
-      name: name.trim(),
-      age: Number(age),
-      gender,
-      location: location.trim(),
-      bio: bio.trim(),
-      interests,
-      profileImage: profileImage || null,
-    });
+      Alert.alert(
+        "Unable to save",
+        error?.message ||
+          "Your profile could not be completed. Please try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    // Profile saved successfully.
-    // Go to the main application.
-    navigation.reset({
-      index: 0,
-      routes: [
-        {
-          name: "Main",
-        },
-      ],
-    });
-  } catch (error) {
-    console.error("ABOUT YOU SAVE ERROR:", error);
-
-    Alert.alert(
-      "Unable to save",
-      error?.message ||
-        "Your profile could not be completed. Please try again.",
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+  const isWeb = Platform.OS === "web";
 
   return (
     <View
@@ -273,301 +238,313 @@ const handleFinish = async () => {
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 24,
+          paddingHorizontal: isWeb ? 32 : 20,
+          paddingTop: isWeb ? 40 : 24,
           paddingBottom: 50,
+          alignItems: isWeb ? "center" : "stretch",
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* HEADER */}
-
-        <Text
-          className="text-3xl font-bold"
+        <View
           style={{
-            color: colors["text-primary"],
+            width: "100%",
+            maxWidth: isWeb ? 620 : undefined,
           }}
         >
-          About you
-        </Text>
+          {/* HEADER */}
 
-        <Text
-          className="mt-2 text-base"
-          style={{
-            color: colors["text-secondary"],
-          }}
-        >
-          Tell the community a little about yourself.
-        </Text>
+          <Text
+            className="text-3xl font-bold"
+            style={{
+              color: colors["text-primary"],
+            }}
+          >
+            About you
+          </Text>
 
-        {/* PROFILE PHOTO */}
+          <Text
+            className="mt-2 text-base"
+            style={{
+              color: colors["text-secondary"],
+            }}
+          >
+            Tell the community a little about yourself.
+          </Text>
 
-        <View className="mt-7 items-center">
-          <Pressable onPress={pickProfileImage} className="relative">
-            <View
-              className="h-[112px] w-[112px] items-center justify-center rounded-full border-2"
-              style={{
-                borderColor: colors.primary,
+          {/* PROFILE PHOTO */}
 
-                backgroundColor: colors.surface,
-              }}
-            >
-              {profileImage ? (
-                <Image
-                  source={{
-                    uri: profileImage,
-                  }}
-                  className="h-[104px] w-[104px] rounded-full"
-                  resizeMode="cover"
-                />
-              ) : (
+          <View className="mt-7 items-center">
+            <Pressable onPress={pickProfileImage} className="relative">
+              <View
+                className="h-[112px] w-[112px] items-center justify-center rounded-full border-2"
+                style={{
+                  borderColor: colors.primary,
+                  backgroundColor: colors.surface,
+                }}
+              >
+                {profileImage ? (
+                  <Image
+                    source={{
+                      uri: profileImage,
+                    }}
+                    className="h-[104px] w-[104px] rounded-full"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text
+                    className="text-4xl font-light"
+                    style={{
+                      color: colors.primary,
+                    }}
+                  >
+                    +
+                  </Text>
+                )}
+              </View>
+
+              <View
+                className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: colors.primary,
+                }}
+              >
                 <Text
-                  className="text-4xl font-light"
+                  className="text-lg font-bold"
                   style={{
-                    color: colors.primary,
+                    color: colors.white,
                   }}
                 >
                   +
                 </Text>
-              )}
-            </View>
+              </View>
+            </Pressable>
 
-            <View
-              className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full"
+            <Text
+              className="mt-3 text-sm font-medium"
               style={{
-                backgroundColor: colors.primary,
+                color: colors["text-secondary"],
               }}
             >
+              {profileImage ? "Change profile photo" : "Add profile photo"}
+            </Text>
+          </View>
+
+          {/* NAME */}
+
+          <View className="mt-7">
+            <Text
+              className="mb-2 text-sm font-medium"
+              style={{
+                color: colors["text-secondary"],
+              }}
+            >
+              Your name
+            </Text>
+
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter your name"
+              placeholderTextColor={colors["text-placeholder"]}
+              className="h-[52px] rounded-xl px-4 text-base"
+              style={{
+                color: colors["text-primary"],
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            />
+          </View>
+
+          {/* AGE */}
+
+          <View className="mt-4">
+            <SelectDropdown
+              label="Age"
+              placeholder="Select your age"
+              options={AGE_OPTIONS}
+              value={age}
+              onSelect={setAge}
+            />
+          </View>
+
+          {/* GENDER */}
+
+          <SelectDropdown
+            label="Gender"
+            placeholder="Select your gender"
+            options={GENDER_OPTIONS}
+            value={gender}
+            onSelect={setGender}
+          />
+
+          {/* LOCATION */}
+
+          <View className="mt-0">
+            <Text
+              className="mb-2 text-sm font-medium"
+              style={{
+                color: colors["text-secondary"],
+              }}
+            >
+              Location
+            </Text>
+
+            <TextInput
+              value={location}
+              onChangeText={setLocation}
+              placeholder="City or area"
+              placeholderTextColor={colors["text-placeholder"]}
+              className="h-[52px] rounded-xl px-4 text-base"
+              style={{
+                color: colors["text-primary"],
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            />
+
+            <Text
+              className="mt-2 text-xs"
+              style={{
+                color: colors["text-muted"],
+              }}
+            >
+              Example: Ludhiana, Punjab
+            </Text>
+          </View>
+
+          {/* INTERESTS */}
+
+          <View className="mt-6">
+            <View className="flex-row items-center justify-between">
               <Text
-                className="text-lg font-bold"
+                className="text-sm font-medium"
+                style={{
+                  color: colors["text-secondary"],
+                }}
+              >
+                Interests
+              </Text>
+
+              <Text
+                className="text-xs"
+                style={{
+                  color: colors["text-muted"],
+                }}
+              >
+                {interests.length} selected
+              </Text>
+            </View>
+
+            <Text
+              className="mt-1 text-xs"
+              style={{
+                color: colors["text-muted"],
+              }}
+            >
+              Select things you enjoy.
+            </Text>
+
+            <View className="mt-3 flex-row flex-wrap">
+              {INTEREST_OPTIONS.map((interest) => {
+                const selected = interests.includes(interest.value);
+
+                return (
+                  <Pressable
+                    key={interest.value}
+                    onPress={() => toggleInterest(interest.value)}
+                    className="mb-2 mr-2 rounded-full border px-3 py-2"
+                    style={{
+                      backgroundColor: selected
+                        ? colors.primary
+                        : colors.surface,
+                      borderColor: selected ? colors.primary : colors.border,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{
+                        color: selected ? colors.white : colors["text-primary"],
+                      }}
+                    >
+                      {interest.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* BIO */}
+
+          <View className="mt-5">
+            <View className="flex-row items-center justify-between">
+              <Text
+                className="text-sm font-medium"
+                style={{
+                  color: colors["text-secondary"],
+                }}
+              >
+                Bio
+              </Text>
+
+              <Text
+                className="text-xs"
+                style={{
+                  color: colors["text-muted"],
+                }}
+              >
+                {bio.length}/160
+              </Text>
+            </View>
+
+            <TextInput
+              value={bio}
+              onChangeText={(text) => {
+                if (text.length <= 160) {
+                  setBio(text);
+                }
+              }}
+              placeholder="Tell people a little about yourself..."
+              placeholderTextColor={colors["text-placeholder"]}
+              multiline
+              textAlignVertical="top"
+              className="mt-2 min-h-[120px] rounded-xl px-4 py-3 text-base"
+              style={{
+                color: colors["text-primary"],
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            />
+          </View>
+
+          {/* COMPLETE */}
+
+          <Pressable
+            disabled={saving}
+            onPress={handleFinish}
+            className="mt-7 h-[52px] items-center justify-center rounded-xl"
+            style={{
+              backgroundColor: colors.primary,
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text
+                className="text-base font-bold"
                 style={{
                   color: colors.white,
                 }}
               >
-                +
+                Complete Profile
               </Text>
-            </View>
+            )}
           </Pressable>
-
-          <Text
-            className="mt-3 text-sm font-medium"
-            style={{
-              color: colors["text-secondary"],
-            }}
-          >
-            {profileImage ? "Change profile photo" : "Add profile photo"}
-          </Text>
         </View>
-
-        <View className="mt-7">
-          <Text
-            className="mb-2 text-sm font-medium"
-            style={{
-              color: colors["text-secondary"],
-            }}
-          >
-            Your name
-          </Text>
-
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter your name"
-            placeholderTextColor={colors["text-placeholder"]}
-            className="h-[52px] rounded-xl px-4 text-base"
-            style={{
-              color: colors["text-primary"],
-
-              backgroundColor: colors.surface,
-
-              borderWidth: 1,
-
-              borderColor: colors.border,
-            }}
-          />
-        </View>
-
-        <View className="mt-4">
-          <SelectDropdown
-            label="Age"
-            placeholder="Select your age"
-            options={AGE_OPTIONS}
-            value={age}
-            onSelect={setAge}
-          />
-        </View>
-
-        <SelectDropdown
-          label="Gender"
-          placeholder="Select your gender"
-          options={GENDER_OPTIONS}
-          value={gender}
-          onSelect={setGender}
-        />
-
-        <View className="mt-0">
-          <Text
-            className="mb-2 text-sm font-medium"
-            style={{
-              color: colors["text-secondary"],
-            }}
-          >
-            Location
-          </Text>
-
-          <TextInput
-            value={location}
-            onChangeText={setLocation}
-            placeholder="City or area"
-            placeholderTextColor={colors["text-placeholder"]}
-            className="h-[52px] rounded-xl px-4 text-base"
-            style={{
-              color: colors["text-primary"],
-
-              backgroundColor: colors.surface,
-
-              borderWidth: 1,
-
-              borderColor: colors.border,
-            }}
-          />
-
-          <Text
-            className="mt-2 text-xs"
-            style={{
-              color: colors["text-muted"],
-            }}
-          >
-            Example: Ludhiana, Punjab
-          </Text>
-        </View>
-
-        <View className="mt-6">
-          <View className="flex-row items-center justify-between">
-            <Text
-              className="text-sm font-medium"
-              style={{
-                color: colors["text-secondary"],
-              }}
-            >
-              Interests
-            </Text>
-
-            <Text
-              className="text-xs"
-              style={{
-                color: colors["text-muted"],
-              }}
-            >
-              {interests.length} selected
-            </Text>
-          </View>
-
-          <Text
-            className="mt-1 text-xs"
-            style={{
-              color: colors["text-muted"],
-            }}
-          >
-            Select things you enjoy.
-          </Text>
-
-          <View className="mt-3 flex-row flex-wrap">
-            {INTEREST_OPTIONS.map((interest) => {
-              const selected = interests.includes(interest.value);
-
-              return (
-                <Pressable
-                  key={interest.value}
-                  onPress={() => toggleInterest(interest.value)}
-                  className="mb-2 mr-2 rounded-full border px-3 py-2"
-                  style={{
-                    backgroundColor: selected ? colors.primary : colors.surface,
-
-                    borderColor: selected ? colors.primary : colors.border,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-semibold"
-                    style={{
-                      color: selected ? colors.white : colors["text-primary"],
-                    }}
-                  >
-                    {interest.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View className="mt-5">
-          <View className="flex-row items-center justify-between">
-            <Text
-              className="text-sm font-medium"
-              style={{
-                color: colors["text-secondary"],
-              }}
-            >
-              Bio
-            </Text>
-
-            <Text
-              className="text-xs"
-              style={{
-                color: colors["text-muted"],
-              }}
-            >
-              {bio.length}/160
-            </Text>
-          </View>
-
-          <TextInput
-            value={bio}
-            onChangeText={(text) => {
-              if (text.length <= 160) {
-                setBio(text);
-              }
-            }}
-            placeholder="Tell people a little about yourself..."
-            placeholderTextColor={colors["text-placeholder"]}
-            multiline
-            textAlignVertical="top"
-            className="mt-2 min-h-[120px] rounded-xl px-4 py-3 text-base"
-            style={{
-              color: colors["text-primary"],
-
-              backgroundColor: colors.surface,
-
-              borderWidth: 1,
-
-              borderColor: colors.border,
-            }}
-          />
-        </View>
-
-        <Pressable
-          disabled={saving}
-          onPress={handleFinish}
-          className="mt-7 h-[52px] items-center justify-center rounded-xl"
-          style={{
-            backgroundColor: colors.primary,
-
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {saving ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <Text
-              className="text-base font-bold"
-              style={{
-                color: colors.white,
-              }}
-            >
-              Complete Profile
-            </Text>
-          )}
-        </Pressable>
       </ScrollView>
     </View>
   );

@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, Pressable, TextInput } from "react-native";
+import {
+  Pressable,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors } from "../../theme";
@@ -9,50 +15,59 @@ export default function CommunitiesHeader({
   onSearchChange,
   onCreatePress,
 }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 380;
+
   return (
-    <View className="bg-background px-4 pb-3 pt-3">
-      {/* Header */}
+    <View className="border-b border-border bg-surface px-4 pb-4 pt-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-[20px] font-extrabold tracking-[-0.3px] text-text-primary">
-          Communities
-        </Text>
+        <View className="flex-1">
+          <Text
+            className={`font-bold text-text-primary ${
+              compact ? "text-2xl" : "text-3xl"
+            }`}
+          >
+            Communities
+          </Text>
+
+          <Text className="mt-1 text-sm text-text-secondary">
+            Find your people and your pets.
+          </Text>
+        </View>
 
         <Pressable
           onPress={onCreatePress}
-          className="h-10 w-10 items-center justify-center rounded-full bg-surface active:opacity-80"
+          className="ml-3 h-11 flex-row items-center rounded-full bg-primary px-4 active:opacity-80"
         >
-          <Ionicons
-            name="add"
-            size={23}
-            color={colors.primary}
-          />
+          <Ionicons name="add" size={20} color={colors.white} />
+
+          {!compact && (
+            <Text className="ml-1.5 text-sm font-bold text-text-primary">
+              Create
+            </Text>
+          )}
         </Pressable>
       </View>
 
-      {/* Search bar */}
-      <View className="mt-3 h-[44px] flex-row items-center rounded-full bg-surface px-4">
-        <Ionicons
-          name="search-outline"
-          size={19}
-          color={colors["text-secondary"]}
-        />
+      <View className="mt-4 h-12 flex-row items-center rounded-2xl border border-border bg-surface-elevated px-3">
+        <Ionicons name="search-outline" size={20} color={colors.iconMuted} />
 
         <TextInput
           value={searchText}
           onChangeText={onSearchChange}
-          placeholder="Find communities, breeds, or locations..."
-          placeholderTextColor={colors["text-placeholder"]}
-          className="ml-2 flex-1 text-[13px] text-text-primary"
-          returnKeyType="search"
+          placeholder="Search communities"
+          placeholderTextColor={colors.textPlaceholder}
+          className="ml-2 flex-1 text-base text-text-primary"
+          autoCapitalize="none"
+          autoCorrect={false}
         />
 
         {searchText?.length > 0 && (
-          <Pressable onPress={() => onSearchChange("")}>
-            <Ionicons
-              name="close-circle"
-              size={18}
-              color={colors["text-secondary"]}
-            />
+          <Pressable
+            onPress={() => onSearchChange("")}
+            className="h-8 w-8 items-center justify-center rounded-full"
+          >
+            <Ionicons name="close-circle" size={19} color={colors.iconMuted} />
           </Pressable>
         )}
       </View>
