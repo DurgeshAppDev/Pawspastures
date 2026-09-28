@@ -2,7 +2,7 @@ import "./global.css";
 
 import React, { useEffect, useState } from "react";
 
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, Platform, StatusBar, View } from "react-native";
 
 import { NavigationContainer } from "@react-navigation/native";
 
@@ -33,18 +33,15 @@ export default function App() {
     let unsubscribeUserDocument = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      /**
-       * Remove the previous Firestore listener
-       * whenever authentication changes.
-       */
       if (unsubscribeUserDocument) {
         unsubscribeUserDocument();
         unsubscribeUserDocument = null;
       }
 
-      /**
+      /*
        * USER LOGGED OUT
        */
+
       if (!currentUser) {
         setUser(null);
         setOnboardingCompleted(null);
@@ -53,40 +50,35 @@ export default function App() {
         return;
       }
 
-      /**
+      /*
        * USER LOGGED IN
        */
+
       setUser(currentUser);
       setOnboardingCompleted(null);
       setCheckingAuth(true);
 
       const userRef = doc(db, "users", currentUser.uid);
 
-   
       unsubscribeUserDocument = onSnapshot(
         userRef,
 
         async (snapshot) => {
-          /**
-           * New Firebase user.
+          /*
+           * NEW USER
            */
+
           if (!snapshot.exists()) {
             try {
               await setDoc(
                 userRef,
                 {
                   uid: currentUser.uid,
-
                   email: currentUser.email || "",
-
                   displayName: currentUser.displayName || "",
-
                   photoURL: currentUser.photoURL || "",
-
                   onboardingCompleted: false,
-
                   createdAt: serverTimestamp(),
-
                   updatedAt: serverTimestamp(),
                 },
                 {
@@ -103,9 +95,10 @@ export default function App() {
             return;
           }
 
-          /**
-           * Existing user.
+          /*
+           * EXISTING USER
            */
+
           const data = snapshot.data();
 
           setOnboardingCompleted(data?.onboardingCompleted === true);
@@ -116,11 +109,6 @@ export default function App() {
         (error) => {
           console.log("User profile listener error:", error);
 
-          /**
-           * If the document cannot be read,
-           * keep the user in onboarding rather
-           * than incorrectly opening the main app.
-           */
           setOnboardingCompleted(false);
           setCheckingAuth(false);
         },
@@ -136,22 +124,29 @@ export default function App() {
     };
   }, []);
 
-  /**
-   * Request application permissions after
-   * authentication state has been established.
-   *
-   * Web does not use native permission APIs.
+  /*
+   * STARTUP PERMISSIONS
    */
+
   useEffect(() => {
     if (!checkingAuth && Platform.OS !== "web") {
       requestStartupPermissions();
     }
   }, [checkingAuth]);
 
-  
+  /*
+   * GLOBAL LOADING SCREEN
+   */
+
   if (checkingAuth) {
     return (
       <SafeAreaProvider>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={colors.background}
+          translucent={false}
+        />
+
         <View
           className="flex-1 items-center justify-center"
           style={{
@@ -166,14 +161,21 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      
+
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={colors.background}
+        translucent={false}
+      />
+
       <NavigationContainer>
-        {/** * Logged out */}
         {!user && <AuthLayout />}
-       { /** * Logged in but onboarding is incomplete */}
+
         {user && onboardingCompleted === false && <OnboardingLayout />}
-        {/** * Logged in and onboarding is complete */}
+
         {user && onboardingCompleted === true && <MainLayout />}
       </NavigationContainer>
     </SafeAreaProvider>
-  );``
+  );
 }
