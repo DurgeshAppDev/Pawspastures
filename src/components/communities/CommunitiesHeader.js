@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
   Pressable,
   Text,
@@ -6,6 +7,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors } from "../../theme";
@@ -16,6 +18,7 @@ export default function CommunitiesHeader({
   onCreatePress,
 }) {
   const { width } = useWindowDimensions();
+
   const compact = width < 380;
 
   return (
@@ -39,10 +42,14 @@ export default function CommunitiesHeader({
           onPress={onCreatePress}
           className="ml-3 h-11 flex-row items-center rounded-full bg-primary px-4 active:opacity-80"
         >
-          <Ionicons name="add" size={20} color={colors.white} />
+          <Ionicons
+            name="add"
+            size={20}
+            color={colors.white}
+          />
 
           {!compact && (
-            <Text className="ml-1.5 text-sm font-bold text-text-primary">
+            <Text className="ml-1.5 text-sm font-bold text-white">
               Create
             </Text>
           )}
@@ -50,7 +57,11 @@ export default function CommunitiesHeader({
       </View>
 
       <View className="mt-4 h-12 flex-row items-center rounded-2xl border border-border bg-surface-elevated px-3">
-        <Ionicons name="search-outline" size={20} color={colors.iconMuted} />
+        <Ionicons
+          name="search-outline"
+          size={20}
+          color={colors.iconMuted}
+        />
 
         <TextInput
           value={searchText}
@@ -67,7 +78,11 @@ export default function CommunitiesHeader({
             onPress={() => onSearchChange("")}
             className="h-8 w-8 items-center justify-center rounded-full"
           >
-            <Ionicons name="close-circle" size={19} color={colors.iconMuted} />
+            <Ionicons
+              name="close-circle"
+              size={19}
+              color={colors.iconMuted}
+            />
           </Pressable>
         )}
       </View>

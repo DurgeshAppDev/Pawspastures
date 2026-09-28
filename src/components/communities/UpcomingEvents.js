@@ -1,5 +1,7 @@
 import React from "react";
+
 import { Pressable, Text, View } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors } from "../../theme";
@@ -8,7 +10,7 @@ export default function UpcomingEvents({ onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      className="mx-4 mb-5 flex-row items-center rounded-2xl border border-border bg-surface p-4 active:opacity-80"
+      className="mx-4 mb-5 flex-row items-center rounded-2xl border border-border bg-surface p-4 active:bg-surface-elevated"
     >
       <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-elevated">
         <Ionicons name="calendar-outline" size={23} color={colors.primary} />
@@ -19,7 +21,7 @@ export default function UpcomingEvents({ onPress }) {
           Upcoming Events
         </Text>
 
-        <Text className="mt-1 text-sm text-tmaiext-secondary">
+        <Text className="mt-1 text-sm text-text-secondary">
           Find pet meetups and community activities.
         </Text>
       </View>

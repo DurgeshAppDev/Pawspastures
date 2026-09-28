@@ -1,12 +1,10 @@
 import React from "react";
-import { Platform } from "react-native";
+import { Platform, useWindowDimensions } from "react-native";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import { Ionicons } from "@expo/vector-icons";
-
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HomeScreen from "../(tabs)/HomeScreen";
@@ -20,6 +18,7 @@ import StoryViewerScreen from "./StoryViewerScreen";
 import MediaEditorScreen from "./MediaEditorScreen";
 import NewPostScreen from "./NewPostScreen";
 import SettingsScreen from "./SettingsScreen";
+
 import CommunityChatScreen from "../../src/components/communities/CommunityChatScreen";
 import RecommendedGroupsScreen from "../../src/components/communities/RecommendedGroupsScreen";
 import UpcomingEventsScreen from "../../src/components/communities/UpcomingEventsScreen";
@@ -31,8 +30,14 @@ import { colors } from "../../src/theme";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const WEB_SIDEBAR_WIDTH = 76;
+
 /**
- * Native Android / iOS bottom navigation.
+ * =========================================================
+ * MOBILE TABS
+ * =========================================================
+ *
+ * Android + iOS remain unchanged.
  */
 function MobileTabs() {
   const insets = useSafeAreaInsets();
@@ -92,63 +97,145 @@ function MobileTabs() {
               break;
 
             case "Shop":
-              iconName = focused ? "bag-handle" : "bag-handle-outline";
+              iconName = focused
+                ? "bag-handle"
+                : "bag-handle-outline";
               break;
 
             case "Profile":
-              iconName = focused ? "person-circle" : "person-circle-outline";
+              iconName = focused
+                ? "person-circle"
+                : "person-circle-outline";
               break;
 
             default:
               iconName = "ellipse-outline";
           }
 
-          return <Ionicons name={iconName} size={22} color={color} />;
+          return (
+            <Ionicons
+              name={iconName}
+              size={22}
+              color={color}
+            />
+          );
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
 
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
+      <Tab.Screen
+        name="Discover"
+        component={DiscoverScreen}
+      />
 
-      <Tab.Screen name="Communities" component={CommunitiesScreen} />
+      <Tab.Screen
+        name="Communities"
+        component={CommunitiesScreen}
+      />
 
-      <Tab.Screen name="Shop" component={ShopScreen} />
+      <Tab.Screen
+        name="Shop"
+        component={ShopScreen}
+      />
 
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+      />
     </Tab.Navigator>
   );
 }
 
 /**
- * Web navigation.
+ * =========================================================
+ * WEB TABS
+ * =========================================================
  *
- * Same React Navigation tab state,
- * but replaces the bottom bar with a
- * left-side hover sidebar.
+ * Desktop Web:
+ *
+ * ┌────────┬───────────────────────────────┐
+ * │        │                               │
+ * │  WEB   │       SCREEN CONTENT          │
+ * │ SIDEBAR│                               │
+ * │        │                               │
+ * └────────┴───────────────────────────────┘
+ *
+ * The important part is tabBarPosition="left".
+ *
+ * React Navigation now reserves the sidebar area instead
+ * of letting the custom sidebar sit over the screen.
  */
 function WebTabs() {
+  const { width } = useWindowDimensions();
+
+  const isDesktop = width >= 900;
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
       tabBar={(props) => <WebSidebar {...props} />}
       screenOptions={{
         headerShown: false,
+
+        /**
+         * Desktop:
+         * sidebar on the left.
+         *
+         * Smaller Web:
+         * bottom navigation.
+         */
+        tabBarPosition: isDesktop ? "left" : "bottom",
+
+        /**
+         * This makes the left sidebar behave like a
+         * compact application navigation.
+         */
+        ...(isDesktop
+          ? {
+              tabBarStyle: {
+                width: WEB_SIDEBAR_WIDTH,
+                backgroundColor: colors.surface,
+                borderRightColor: colors.border,
+                borderRightWidth: 1,
+              },
+            }
+          : {}),
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+      />
 
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
+      <Tab.Screen
+        name="Discover"
+        component={DiscoverScreen}
+      />
 
-      <Tab.Screen name="Communities" component={CommunitiesScreen} />
+      <Tab.Screen
+        name="Communities"
+        component={CommunitiesScreen}
+      />
 
-      <Tab.Screen name="Shop" component={ShopScreen} />
+      <Tab.Screen
+        name="Shop"
+        component={ShopScreen}
+      />
 
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+      />
     </Tab.Navigator>
   );
 }
 
+/**
+ * =========================================================
+ * MAIN TABS
+ * =========================================================
+ */
 function MainTabs() {
   if (Platform.OS === "web") {
     return <WebTabs />;
@@ -157,6 +244,11 @@ function MainTabs() {
   return <MobileTabs />;
 }
 
+/**
+ * =========================================================
+ * MAIN STACK
+ * =========================================================
+ */
 export default function MainLayout() {
   return (
     <Stack.Navigator
@@ -165,23 +257,56 @@ export default function MainLayout() {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="MainTabs" component={MainTabs} />
+      {/* Main application */}
 
-      <Stack.Screen name="NewPost" component={NewPostScreen} />
-
-      <Stack.Screen name="AddStory" component={AddStoryScreen} />
-
-      <Stack.Screen name="MediaEditor" component={MediaEditorScreen} />
-
-      <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
-
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
-
-      <Stack.Screen   name="RecommendedGroups"  component={RecommendedGroupsScreen}
+      <Stack.Screen
+        name="MainTabs"
+        component={MainTabs}
       />
 
-      <Stack.Screen name="UpcomingEvents" component={UpcomingEventsScreen} />
+      {/* Existing screens */}
+
+      <Stack.Screen
+        name="NewPost"
+        component={NewPostScreen}
+      />
+
+      <Stack.Screen
+        name="AddStory"
+        component={AddStoryScreen}
+      />
+
+      <Stack.Screen
+        name="MediaEditor"
+        component={MediaEditorScreen}
+      />
+
+      <Stack.Screen
+        name="StoryViewer"
+        component={StoryViewerScreen}
+      />
+
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+      />
+
+      {/* Community screens */}
+
+      <Stack.Screen
+        name="CommunityChat"
+        component={CommunityChatScreen}
+      />
+
+      <Stack.Screen
+        name="RecommendedGroups"
+        component={RecommendedGroupsScreen}
+      />
+
+      <Stack.Screen
+        name="UpcomingEvents"
+        component={UpcomingEventsScreen}
+      />
     </Stack.Navigator>
   );
 }

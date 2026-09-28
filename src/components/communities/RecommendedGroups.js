@@ -1,5 +1,7 @@
 import React from "react";
+
 import { Pressable, Text, View } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors } from "../../theme";
@@ -8,7 +10,7 @@ export default function RecommendedGroups({ onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      className="mx-4 mb-3 flex-row items-center rounded-2xl border border-border bg-surface p-4 active:opacity-80"
+      className="mx-4 mb-4 flex-row items-center rounded-2xl border border-border bg-surface p-4 active:bg-surface-elevated"
     >
       <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-elevated">
         <Ionicons name="people-outline" size={23} color={colors.primary} />

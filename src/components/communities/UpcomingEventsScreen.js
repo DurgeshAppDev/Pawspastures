@@ -1,6 +1,9 @@
 import React from "react";
+
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors } from "../../theme";
@@ -38,14 +41,10 @@ export default function UpcomingEventsScreen({ navigation }) {
       edges={["top", "left", "right"]}
       className="flex-1 bg-background"
     >
-      {/* HEADER */}
-
       <View className="h-[70px] flex-row items-center border-b border-border bg-surface px-3">
         <Pressable
           onPress={() => navigation.goBack()}
           className="h-11 w-11 items-center justify-center rounded-full"
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
         >
           <Ionicons name="arrow-back" size={23} color={colors.textPrimary} />
         </Pressable>
@@ -55,7 +54,7 @@ export default function UpcomingEventsScreen({ navigation }) {
             Upcoming Events
           </Text>
 
-          <Text className="mt-0.5 text-xs text-text-secondary">
+          <Text className="mt-0.5 text-sm text-text-secondary">
             Meet the community offline
           </Text>
         </View>
@@ -65,8 +64,6 @@ export default function UpcomingEventsScreen({ navigation }) {
         </View>
       </View>
 
-      {/* EVENTS */}
-
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -75,12 +72,10 @@ export default function UpcomingEventsScreen({ navigation }) {
           paddingBottom: 100,
         }}
       >
-        <View className="mb-5">
-          <Text className="text-sm leading-5 text-text-secondary">
-            Discover pet meetups, activities and events happening around the
-            community.
-          </Text>
-        </View>
+        <Text className="mb-5 text-base leading-6 text-text-secondary">
+          Discover pet meetups, activities and events happening around the
+          community.
+        </Text>
 
         {UPCOMING_EVENTS.map((event) => (
           <View
@@ -88,15 +83,15 @@ export default function UpcomingEventsScreen({ navigation }) {
             className="mb-5 overflow-hidden rounded-2xl border border-border bg-surface"
           >
             <Image
-              source={{ uri: event.image }}
-              className="h-52 w-full"
+              source={{
+                uri: event.image,
+              }}
+              className="h-44 w-full"
               resizeMode="cover"
             />
 
             <View className="p-5">
               <View className="flex-row items-start">
-                {/* DATE */}
-
                 <View className="mr-4 items-center rounded-xl bg-surface-elevated px-3 py-2.5">
                   <Text className="text-xs font-bold text-primary">
                     {event.date.split(" ")[1]}
@@ -106,8 +101,6 @@ export default function UpcomingEventsScreen({ navigation }) {
                     {event.date.split(" ")[0]}
                   </Text>
                 </View>
-
-                {/* DETAILS */}
 
                 <View className="flex-1">
                   <Text className="text-lg font-bold text-text-primary">
@@ -140,7 +133,7 @@ export default function UpcomingEventsScreen({ navigation }) {
                 </View>
               </View>
 
-              <Text className="mt-5 text-sm leading-6 text-text-secondary">
+              <Text className="mt-5 text-base leading-6 text-text-secondary">
                 {event.description}
               </Text>
 
@@ -161,9 +154,7 @@ export default function UpcomingEventsScreen({ navigation }) {
                   onPress={() => {}}
                   className="rounded-xl bg-primary px-5 py-3 active:opacity-80"
                 >
-                  <Text className="text-sm font-bold text-text-primary">
-                    RSVP
-                  </Text>
+                  <Text className="text-sm font-bold text-white">RSVP</Text>
                 </Pressable>
               </View>
             </View>
