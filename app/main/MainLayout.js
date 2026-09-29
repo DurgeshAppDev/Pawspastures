@@ -22,6 +22,8 @@ import SettingsScreen from "./SettingsScreen";
 import CommunityChatScreen from "../../src/components/communities/CommunityChatScreen";
 import RecommendedGroupsScreen from "../../src/components/communities/RecommendedGroupsScreen";
 import UpcomingEventsScreen from "../../src/components/communities/UpcomingEventsScreen";
+import CreateCommunityScreen from "../../src/components/communities/CreateCommunityScreen";
+import CommunityInfoScreen from "../../src/components/communities/CommunityInfoScreen";
 
 import WebSidebar from "../../src/components/navigation/WebSidebar";
 
@@ -97,75 +99,34 @@ function MobileTabs() {
               break;
 
             case "Shop":
-              iconName = focused
-                ? "bag-handle"
-                : "bag-handle-outline";
+              iconName = focused ? "bag-handle" : "bag-handle-outline";
               break;
 
             case "Profile":
-              iconName = focused
-                ? "person-circle"
-                : "person-circle-outline";
+              iconName = focused ? "person-circle" : "person-circle-outline";
               break;
 
             default:
               iconName = "ellipse-outline";
           }
 
-          return (
-            <Ionicons
-              name={iconName}
-              size={22}
-              color={color}
-            />
-          );
+          return <Ionicons name={iconName} size={22} color={color} />;
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
 
-      <Tab.Screen
-        name="Discover"
-        component={DiscoverScreen}
-      />
+      <Tab.Screen name="Discover" component={DiscoverScreen} />
 
-      <Tab.Screen
-        name="Communities"
-        component={CommunitiesScreen}
-      />
+      <Tab.Screen name="Communities" component={CommunitiesScreen} />
 
-      <Tab.Screen
-        name="Shop"
-        component={ShopScreen}
-      />
+      <Tab.Screen name="Shop" component={ShopScreen} />
 
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-      />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
 
-/**
- * =========================================================
- * WEB TABS
- * =========================================================
- *
- * Desktop Web:
- *
- * ┌────────┬───────────────────────────────┐
- * │        │                               │
- * │  WEB   │       SCREEN CONTENT          │
- * │ SIDEBAR│                               │
- * │        │                               │
- * └────────┴───────────────────────────────┘
- *
- * The important part is tabBarPosition="left".
- *
- * React Navigation now reserves the sidebar area instead
- * of letting the custom sidebar sit over the screen.
- */
 function WebTabs() {
   const { width } = useWindowDimensions();
 
@@ -203,30 +164,15 @@ function WebTabs() {
           : {}),
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} />
 
-      <Tab.Screen
-        name="Discover"
-        component={DiscoverScreen}
-      />
+      <Tab.Screen name="Discover" component={DiscoverScreen} />
 
-      <Tab.Screen
-        name="Communities"
-        component={CommunitiesScreen}
-      />
+      <Tab.Screen name="Communities" component={CommunitiesScreen} />
 
-      <Tab.Screen
-        name="Shop"
-        component={ShopScreen}
-      />
+      <Tab.Screen name="Shop" component={ShopScreen} />
 
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-      />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -259,54 +205,27 @@ export default function MainLayout() {
     >
       {/* Main application */}
 
-      <Stack.Screen
-        name="MainTabs"
-        component={MainTabs}
-      />
+      <Stack.Screen name="MainTabs" component={MainTabs} />
 
       {/* Existing screens */}
 
-      <Stack.Screen
-        name="NewPost"
-        component={NewPostScreen}
-      />
+      <Stack.Screen name="NewPost" component={NewPostScreen} />
 
-      <Stack.Screen
-        name="AddStory"
-        component={AddStoryScreen}
-      />
+      <Stack.Screen name="AddStory" component={AddStoryScreen} />
 
-      <Stack.Screen
-        name="MediaEditor"
-        component={MediaEditorScreen}
-      />
+      <Stack.Screen name="MediaEditor" component={MediaEditorScreen} />
 
-      <Stack.Screen
-        name="StoryViewer"
-        component={StoryViewerScreen}
-      />
+      <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
 
-      <Stack.Screen
-        name="Settings"
-        component={SettingsScreen}
-      />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
 
       {/* Community screens */}
 
-      <Stack.Screen
-        name="CommunityChat"
-        component={CommunityChatScreen}
-      />
-
-      <Stack.Screen
-        name="RecommendedGroups"
-        component={RecommendedGroupsScreen}
-      />
-
-      <Stack.Screen
-        name="UpcomingEvents"
-        component={UpcomingEventsScreen}
-      />
+      <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
+      <Stack.Screen  name="RecommendedGroups"   component={RecommendedGroupsScreen}/>
+      <Stack.Screen name="UpcomingEvents" component={UpcomingEventsScreen} />
+      <Stack.Screen name="CreateCommunity" component={CreateCommunityScreen} />
+      <Stack.Screen name="CommunityInfo" component={CommunityInfoScreen} />
     </Stack.Navigator>
   );
 }

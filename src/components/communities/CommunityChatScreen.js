@@ -15,7 +15,6 @@ import {
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
-
 import { Ionicons } from "@expo/vector-icons";
 
 import {
@@ -36,88 +35,6 @@ const CURRENT_USER = {
   name: "You",
 };
 
-/*
-  Each user can have ONLY ONE reaction
-  on a particular message.
-
-  Example:
-
-  reactions: {
-    me: "❤️",
-    mehak: "😂",
-    aarav: "👍"
-  }
-*/
-
-const INITIAL_MESSAGES = [
-  {
-    id: "m1",
-    type: "text",
-    senderId: "admin",
-    senderName: "Community Admin",
-    message: "Welcome everyone! Feel free to introduce yourself and your pet.",
-    time: "10:12 AM",
-    admin: true,
-
-    reactions: {
-      me: "👋",
-      mehak: "🐾",
-      aarav: "🐾",
-      riya: "🐾",
-      arjun: "🐾",
-      simran: "👋",
-    },
-  },
-
-  {
-    id: "m2",
-    type: "text",
-    senderId: "mehak",
-    senderName: "Mehak",
-    message: "Hello everyone! Milo and I are happy to be here 🐾",
-    time: "10:18 AM",
-
-    reactions: {
-      mehak: "❤️",
-      aarav: "❤️",
-      riya: "❤️",
-      arjun: "❤️",
-      simran: "❤️",
-      admin: "🐾",
-      rohan: "🐾",
-      neha: "🐾",
-    },
-  },
-
-  {
-    id: "m3",
-    type: "text",
-    senderId: "aarav",
-    senderName: "Aarav",
-    message: "Anyone joining the weekend pet walk?",
-    time: "10:25 AM",
-
-    reactions: {
-      me: "👍",
-      mehak: "👍",
-      riya: "👍",
-      arjun: "👍",
-    },
-  },
-
-  {
-    id: "m4",
-    type: "text",
-    senderId: "admin",
-    senderName: "Community Admin",
-    message: "Yes! Details will be posted in the Events section.",
-    time: "10:27 AM",
-    admin: true,
-
-    reactions: {},
-  },
-];
-
 /* =========================================================
    MAIN SCREEN
 ========================================================= */
@@ -127,34 +44,75 @@ export default function CommunityChatScreen({
   route,
   community: directCommunity,
   embedded = false,
-  initialMessages = INITIAL_MESSAGES,
+  initialMessages = [],
 }) {
   const community = directCommunity || route?.params?.community;
 
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState(initialMessages);
-
   const [message, setMessage] = useState("");
-
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
   const [sendingImage, setSendingImage] = useState(false);
-
-  /*
-    ID of the message currently selected
-    for reaction / edit / delete.
-  */
   const [selectedMessageId, setSelectedMessageId] = useState(null);
-
-  /*
-    If true, the selected message is being edited.
-  */
   const [isEditing, setIsEditing] = useState(false);
 
   const listRef = useRef(null);
-
   const inputRef = useRef(null);
+
+  /* =========================================================
+     COMMUNITY INFO NAVIGATION
+  ========================================================= */
+
+  const openCommunityInfo = useCallback(() => {
+    if (!community || !navigation) {
+      return;
+    }
+
+    let currentNavigation = navigation;
+
+    /*
+     * Search the current navigator and all parent navigators.
+     *
+     * Web:
+     * CommunityChatScreen
+     *      ↓
+     * WebTabs
+     *      ↓
+     * MainLayout Stack
+     *
+     * CommunityInfo belongs to MainLayout Stack.
+     *
+     * Mobile standalone chat can use the current navigator
+     * directly if CommunityInfo is available there.
+     */
+
+    while (currentNavigation) {
+      const state = currentNavigation.getState?.();
+
+      const routeNames = state?.routeNames || [];
+
+      if (routeNames.includes("CommunityInfo")) {
+        currentNavigation.navigate("CommunityInfo", {
+          community,
+        });
+
+        return;
+      }
+
+      currentNavigation = currentNavigation.getParent?.() || null;
+    }
+
+    /*
+     * Final fallback.
+     *
+     * This keeps normal React Navigation behavior if the
+     * navigator state is not available for some reason.
+     */
+    navigation.navigate?.("CommunityInfo", {
+      community,
+    });
+  }, [community, navigation]);
 
   /* =========================================================
      SELECTED MESSAGE
@@ -169,19 +127,51 @@ export default function CommunityChatScreen({
   }, [messages, selectedMessageId]);
 
   /* =========================================================
-     CLOSE MESSAGE ACTION MODE
+     CLOSE ACTION MODE
   ========================================================= */
 
   const closeMessageActions = useCallback(() => {
     setSelectedMessageId(null);
     setIsEditing(false);
     setMessage("");
+    setShowEmojiPicker(false);
 
     Keyboard.dismiss();
   }, []);
 
   /* =========================================================
-     SEND TEXT MESSAGE
+     REACTION
+  ========================================================= */
+
+  const toggleReaction = useCallback((messageId, emoji) => {
+    setMessages((previous) =>
+      previous.map((item) => {
+        if (item.id !== messageId || item.deleted) {
+          return item;
+        }
+
+        const reactions = {
+          ...(item.reactions || {}),
+        };
+
+        const currentReaction = reactions[CURRENT_USER.id];
+
+        if (currentReaction === emoji) {
+          delete reactions[CURRENT_USER.id];
+        } else {
+          reactions[CURRENT_USER.id] = emoji;
+        }
+
+        return {
+          ...item,
+          reactions,
+        };
+      }),
+    );
+  }, []);
+
+  /* =========================================================
+     SEND MESSAGE
   ========================================================= */
 
   const sendTextMessage = useCallback(() => {
@@ -191,14 +181,20 @@ export default function CommunityChatScreen({
       return;
     }
 
-    /* -------------------------------------------------------
-       EDIT EXISTING MESSAGE
-    ------------------------------------------------------- */
+    /* EDIT EXISTING MESSAGE */
 
     if (isEditing && selectedMessageId) {
       setMessages((previous) =>
         previous.map((item) => {
           if (item.id !== selectedMessageId) {
+            return item;
+          }
+
+          if (
+            item.senderId !== CURRENT_USER.id ||
+            item.deleted ||
+            item.type !== "text"
+          ) {
             return item;
           }
 
@@ -219,15 +215,7 @@ export default function CommunityChatScreen({
       return;
     }
 
-    /* -------------------------------------------------------
-       REACTION FROM NATIVE KEYBOARD
-
-       When a message is selected, the input becomes a
-       reaction composer.
-
-       User can switch their device keyboard to emoji,
-       choose an emoji and press send.
-    ------------------------------------------------------- */
+    /* REACTION FROM KEYBOARD */
 
     if (selectedMessageId && !isEditing) {
       const emoji = getLastEmoji(text);
@@ -240,33 +228,19 @@ export default function CommunityChatScreen({
         return;
       }
 
-      /*
-        If selected-message mode is active but the
-        user entered normal text, don't accidentally
-        send it as a chat message.
-      */
-
       return;
     }
 
-    /* -------------------------------------------------------
-       NORMAL NEW MESSAGE
-    ------------------------------------------------------- */
+    /* NEW MESSAGE */
 
     const newMessage = {
       id: `local-${Date.now()}`,
-
       type: "text",
-
       senderId: CURRENT_USER.id,
       senderName: CURRENT_USER.name,
-
       message: text,
-
       time: getCurrentTime(),
-
       admin: false,
-
       reactions: {},
     };
 
@@ -279,103 +253,38 @@ export default function CommunityChatScreen({
         animated: true,
       });
     });
-  }, [message, isEditing, selectedMessageId]);
+  }, [message, isEditing, selectedMessageId, toggleReaction]);
 
   /* =========================================================
-     INSERT QUICK EMOJI
+     QUICK EMOJI
   ========================================================= */
 
   const insertEmoji = useCallback(
     (emoji) => {
-      /*
-        If a message is selected, this emoji is a
-        reaction to that message.
-      */
-
       if (selectedMessageId && !isEditing) {
         toggleReaction(selectedMessageId, emoji);
 
         return;
       }
 
-      /*
-        Otherwise it behaves as a normal emoji
-        inserted into the chat input.
-      */
-
       setMessage((previous) => `${previous}${emoji}`);
     },
-    [selectedMessageId, isEditing],
+    [selectedMessageId, isEditing, toggleReaction],
   );
 
   /* =========================================================
-     TOGGLE REACTION
-     
-     ONE USER = ONE REACTION PER MESSAGE
-     
-     Same emoji:
-       remove reaction
-
-     Different emoji:
-       replace previous reaction
-  ========================================================= */
-
-  const toggleReaction = useCallback((messageId, emoji) => {
-    setMessages((previous) =>
-      previous.map((item) => {
-        if (item.id !== messageId) {
-          return item;
-        }
-
-        const reactions = {
-          ...(item.reactions || {}),
-        };
-
-        const currentReaction = reactions[CURRENT_USER.id];
-
-        /*
-            Same reaction = remove it.
-          */
-
-        if (currentReaction === emoji) {
-          delete reactions[CURRENT_USER.id];
-
-          return {
-            ...item,
-            reactions,
-          };
-        }
-
-        /*
-            New reaction OR changing existing
-            reaction.
-          */
-
-        reactions[CURRENT_USER.id] = emoji;
-
-        return {
-          ...item,
-          reactions,
-        };
-      }),
-    );
-  }, []);
-
-  /* =========================================================
-     LONG PRESS MESSAGE
+     SELECT MESSAGE
   ========================================================= */
 
   const handleLongPressMessage = useCallback((item) => {
+    if (item.deleted) {
+      return;
+    }
+
     setSelectedMessageId(item.id);
     setIsEditing(false);
     setMessage("");
-
-    /*
-          Open the native keyboard.
-
-          The user can switch to their device's
-          emoji keyboard from here.
-        */
+    setShowEmojiPicker(false);
 
     requestAnimationFrame(() => {
       inputRef.current?.focus?.();
@@ -384,8 +293,6 @@ export default function CommunityChatScreen({
 
   /* =========================================================
      EDIT MESSAGE
-     
-     Only own messages can be edited.
   ========================================================= */
 
   const handleEditMessage = useCallback(() => {
@@ -397,7 +304,7 @@ export default function CommunityChatScreen({
       return;
     }
 
-    if (selectedMessage.type !== "text") {
+    if (selectedMessage.type !== "text" || selectedMessage.deleted) {
       return;
     }
 
@@ -412,9 +319,39 @@ export default function CommunityChatScreen({
 
   /* =========================================================
      DELETE MESSAGE
-     
-     Only own messages can be deleted.
   ========================================================= */
+
+  const performDeleteMessage = useCallback(() => {
+    if (!selectedMessage) {
+      return;
+    }
+
+    setMessages((previous) =>
+      previous.map((item) => {
+        if (item.id !== selectedMessage.id) {
+          return item;
+        }
+
+        return {
+          ...item,
+          deleted: true,
+          deletedAt: new Date().toISOString(),
+          deletedBy: CURRENT_USER.id,
+          message: "",
+          imageUri: undefined,
+          reactions: {},
+          edited: false,
+        };
+      }),
+    );
+
+    setSelectedMessageId(null);
+    setIsEditing(false);
+    setMessage("");
+    setShowEmojiPicker(false);
+
+    Keyboard.dismiss();
+  }, [selectedMessage]);
 
   const handleDeleteMessage = useCallback(() => {
     if (!selectedMessage) {
@@ -425,30 +362,31 @@ export default function CommunityChatScreen({
       return;
     }
 
+    if (Platform.OS === "web") {
+      const confirmed =
+        typeof window !== "undefined"
+          ? window.confirm("Delete this message?")
+          : true;
+
+      if (confirmed) {
+        performDeleteMessage();
+      }
+
+      return;
+    }
+
     Alert.alert("Delete message?", "This message will be deleted.", [
       {
         text: "Cancel",
         style: "cancel",
       },
-
       {
         text: "Delete",
         style: "destructive",
-
-        onPress: () => {
-          setMessages((previous) =>
-            previous.filter((item) => item.id !== selectedMessage.id),
-          );
-
-          setSelectedMessageId(null);
-          setIsEditing(false);
-          setMessage("");
-
-          Keyboard.dismiss();
-        },
+        onPress: performDeleteMessage,
       },
     ]);
-  }, [selectedMessage]);
+  }, [selectedMessage, performDeleteMessage]);
 
   /* =========================================================
      CANCEL EDIT
@@ -484,18 +422,12 @@ export default function CommunityChatScreen({
 
       const imageMessage = {
         id: `image-${Date.now()}`,
-
         type: "image",
-
         senderId: CURRENT_USER.id,
         senderName: CURRENT_USER.name,
-
         imageUri,
-
         time: getCurrentTime(),
-
         admin: false,
-
         reactions: {},
       };
 
@@ -547,57 +479,92 @@ export default function CommunityChatScreen({
           paddingTop: Math.max(12, insets.top),
         }}
       >
+        {/* BACK BUTTON */}
+
         {!embedded && (
           <Pressable
             onPress={() => navigation?.goBack?.()}
             className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-surface-elevated"
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
-            <Ionicons name="arrow-back" size={21} color={colors.iconMuted} />
+            <Ionicons name="arrow-back" size={21} color={colors.white} />
           </Pressable>
         )}
 
-        <View className="h-11 w-11 items-center justify-center rounded-full bg-surface-elevated">
-          <Ionicons name="people" size={22} color={colors.primary} />
-        </View>
+        {/* COMMUNITY IMAGE / ICON */}
 
-        <View className="ml-3 flex-1">
+        <Pressable
+          onPress={openCommunityInfo}
+          className="h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-surface-elevated"
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Open community information"
+        >
+          {community?.coverImage || community?.coverImageUri ? (
+            <Image
+              source={{
+                uri: community.coverImage || community.coverImageUri,
+              }}
+              className="h-full w-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <Ionicons name="people" size={22} color={colors.primary} />
+          )}
+        </Pressable>
+
+        {/* COMMUNITY NAME */}
+
+        <Pressable
+          onPress={openCommunityInfo}
+          className="ml-2 min-w-0 flex-1 py-1"
+          hitSlop={{
+            top: 8,
+            bottom: 8,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Open information for ${
+            community?.name || "Community"
+          }`}
+        >
           <Text
             numberOfLines={1}
             className="text-base font-bold text-text-primary"
           >
-            {community.name}
+            {community?.name || "Community"}
           </Text>
 
-          <Text className="mt-0.5 text-xs text-text-secondary">
-            {community.members || "Community chat"}
+          <Text
+            numberOfLines={1}
+            className="mt-0.5 text-xs text-text-secondary"
+          >
+            {community?.memberCount || 0} members
           </Text>
-        </View>
-
-        <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-surface-elevated">
-          <Ionicons name="search-outline" size={20} color={colors.iconMuted} />
         </Pressable>
 
-        <Pressable className="ml-2 h-10 w-10 items-center justify-center rounded-full bg-surface-elevated">
+        {/* INFO BUTTON */}
+
+        <Pressable
+          onPress={openCommunityInfo}
+          className="ml-2 h-10 w-10 items-center justify-center rounded-full bg-surface-elevated"
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Community information"
+        >
           <Ionicons
-            name="ellipsis-vertical"
-            size={20}
-            color={colors.iconMuted}
+            name="information-circle-outline"
+            size={21}
+            color={colors.white}
           />
         </Pressable>
       </View>
     );
-  }, [community, embedded, navigation, insets.top]);
+  }, [community, embedded, navigation, insets.top, openCommunityInfo]);
 
   /* =========================================================
      MESSAGE ACTION HEADER
-     
-     Appears after long press.
-     
-     Own message:
-       Edit + Delete
-
-     Other user's message:
-       No Edit/Delete
   ========================================================= */
 
   const actionHeader = useMemo(() => {
@@ -607,6 +574,14 @@ export default function CommunityChatScreen({
 
     const isOwnMessage = selectedMessage.senderId === CURRENT_USER.id;
 
+    const canEdit =
+      isOwnMessage &&
+      selectedMessage.type === "text" &&
+      !selectedMessage.deleted &&
+      !isEditing;
+
+    const canDelete = isOwnMessage && !selectedMessage.deleted && !isEditing;
+
     return (
       <View
         className="flex-row items-center border-b border-border bg-surface px-3 py-2"
@@ -614,11 +589,14 @@ export default function CommunityChatScreen({
           paddingTop: Math.max(8, insets.top),
         }}
       >
+        {/* CLOSE */}
+
         <Pressable
           onPress={isEditing ? cancelEdit : closeMessageActions}
           className="h-10 w-10 items-center justify-center rounded-full bg-surface-elevated"
+          hitSlop={8}
         >
-          <Ionicons name="close" size={21} color={colors.iconMuted} />
+          <Ionicons name="close" size={21} color={colors.white} />
         </Pressable>
 
         <View className="ml-3 flex-1">
@@ -633,25 +611,27 @@ export default function CommunityChatScreen({
           )}
         </View>
 
-        {isOwnMessage && selectedMessage.type === "text" && !isEditing && (
+        {/* EDIT */}
+
+        {canEdit && (
           <Pressable
             onPress={handleEditMessage}
             className="mr-1 h-10 w-10 items-center justify-center rounded-full bg-surface-elevated"
+            hitSlop={8}
           >
-            <Ionicons
-              name="create-outline"
-              size={21}
-              color={colors.iconMuted}
-            />
+            <Ionicons name="create-outline" size={21} color={colors.white} />
           </Pressable>
         )}
 
-        {isOwnMessage && !isEditing && (
+        {/* DELETE */}
+
+        {canDelete && (
           <Pressable
             onPress={handleDeleteMessage}
             className="h-10 w-10 items-center justify-center rounded-full bg-surface-elevated"
+            hitSlop={8}
           >
-            <Ionicons name="trash-outline" size={20} color={colors.iconMuted} />
+            <Ionicons name="trash-outline" size={20} color={colors.white} />
           </Pressable>
         )}
       </View>
@@ -672,8 +652,12 @@ export default function CommunityChatScreen({
 
   if (!community) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Text className="text-base text-text-primary">
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <View className="h-20 w-20 items-center justify-center rounded-full bg-surface-elevated">
+          <Ionicons name="people-outline" size={36} color={colors.iconMuted} />
+        </View>
+
+        <Text className="mt-5 text-base font-semibold text-text-primary">
           Community not found.
         </Text>
       </View>
@@ -686,43 +670,33 @@ export default function CommunityChatScreen({
 
   const content = (
     <View className="flex-1 bg-background">
-      {/* -----------------------------------------------------
-          HEADER
-      ----------------------------------------------------- */}
-
       {selectedMessage ? actionHeader : normalHeader}
 
-      {/* -----------------------------------------------------
-          MESSAGES
-      ----------------------------------------------------- */}
+      {/* EMPTY STATE */}
 
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={keyExtractor}
-        renderItem={renderMessage}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 18,
+      {messages.length === 0 ? (
+        <EmptyMessagesState />
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={keyExtractor}
+          renderItem={renderMessage}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 12,
+            paddingTop: 12,
+            paddingBottom: Math.max(20, insets.bottom + 20),
+          }}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          keyboardShouldPersistTaps="handled"
+          ListFooterComponent={<View className="h-2" />}
+        />
+      )}
 
-          /*
-            Extra space so the final message doesn't
-            sit directly behind the input.
-          */
-          paddingBottom: Math.max(20, insets.bottom + 20),
-        }}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        keyboardShouldPersistTaps="handled"
-        ListFooterComponent={<View className="h-2" />}
-      />
-
-      {/* -----------------------------------------------------
-          QUICK EMOJI PANEL
-      ----------------------------------------------------- */}
+      {/* EMOJI PICKER */}
 
       {showEmojiPicker && !selectedMessage && (
         <View className="border-t border-border bg-surface px-4 py-3">
@@ -740,27 +714,23 @@ export default function CommunityChatScreen({
         </View>
       )}
 
-      {/* -----------------------------------------------------
-          REACTION QUICK BAR
+      {/* SELECTED MESSAGE REACTIONS */}
 
-          Appears specifically after long press.
-      ----------------------------------------------------- */}
-
-      {selectedMessage && !isEditing && (
+      {selectedMessage && !isEditing && !selectedMessage.deleted && (
         <View className="border-t border-border bg-surface px-4 py-3">
           <View className="flex-row items-center justify-between rounded-2xl border border-border bg-surface-elevated px-2 py-2">
-            {QUICK_EMOJIS.slice(0, 6).map((emoji) => {
+            {QUICK_EMOJIS.map((emoji) => {
               const currentReaction =
                 selectedMessage.reactions?.[CURRENT_USER.id];
 
-              const selected = currentReaction === emoji;
+              const isSelected = currentReaction === emoji;
 
               return (
                 <Pressable
                   key={emoji}
                   onPress={() => toggleReaction(selectedMessage.id, emoji)}
                   className={`h-11 w-11 items-center justify-center rounded-full ${
-                    selected ? "bg-primary/20" : ""
+                    isSelected ? "bg-primary/20" : ""
                   }`}
                 >
                   <Text className="text-2xl">{emoji}</Text>
@@ -770,14 +740,12 @@ export default function CommunityChatScreen({
           </View>
 
           <Text className="mt-2 text-center text-[11px] text-text-secondary">
-            Choose a reaction or switch to your keyboard emoji panel
+            Choose a reaction or use your keyboard emoji
           </Text>
         </View>
       )}
 
-      {/* -----------------------------------------------------
-          INPUT
-      ----------------------------------------------------- */}
+      {/* INPUT AREA */}
 
       <View
         className="border-t border-border bg-surface px-3 pt-3"
@@ -812,51 +780,42 @@ export default function CommunityChatScreen({
               <Pressable
                 onPress={cancelEdit}
                 className="h-8 w-8 items-center justify-center rounded-full"
+                hitSlop={8}
               >
-                <Ionicons name="close" size={18} color={colors.iconMuted} />
+                <Ionicons name="close" size={18} color={colors.white} />
               </Pressable>
             </View>
           )}
 
+          {/* INPUT */}
+
           <View className="flex-row items-end rounded-2xl border border-border bg-surface-elevated px-2 py-2">
-            {/* ---------------------------------------------
-                EMOJI BUTTON
-
-                Normal mode:
-                  opens our quick emoji panel.
-
-                Selected message:
-                  focuses native keyboard.
-            --------------------------------------------- */}
+            {/* EMOJI */}
 
             <Pressable
               onPress={() => {
                 if (selectedMessage && !isEditing) {
                   inputRef.current?.focus?.();
-
                   return;
                 }
 
                 setShowEmojiPicker((previous) => !previous);
               }}
               className="h-10 w-10 items-center justify-center"
+              hitSlop={6}
             >
               <Ionicons
                 name="happy-outline"
                 size={23}
                 color={
-                  selectedMessage
+                  selectedMessage || showEmojiPicker
                     ? colors.primary
-                    : showEmojiPicker
-                      ? colors.primary
-                      : colors.iconMuted
+                    : colors.white
                 }
               />
             </Pressable>
 
-            {/* ---------------------------------------------
-                INPUT
-            --------------------------------------------- */}
+            {/* TEXT INPUT */}
 
             <TextInput
               ref={inputRef}
@@ -870,13 +829,6 @@ export default function CommunityChatScreen({
               placeholderTextColor={colors.textPlaceholder}
               multiline
               onFocus={() => {
-                /*
-                  If message selection is active,
-                  hide the normal quick emoji
-                  panel because native keyboard
-                  is now active.
-                */
-
                 if (selectedMessage) {
                   setShowEmojiPicker(false);
                 }
@@ -884,17 +836,14 @@ export default function CommunityChatScreen({
               className="max-h-[100px] flex-1 px-2 py-2 text-base text-text-primary"
             />
 
-            {/* ---------------------------------------------
-                IMAGE
-
-                Hidden during edit/reaction mode.
-            --------------------------------------------- */}
+            {/* IMAGE */}
 
             {!selectedMessage && !isEditing && (
               <Pressable
                 onPress={selectImage}
                 disabled={sendingImage}
                 className="h-10 w-10 items-center justify-center"
+                hitSlop={6}
               >
                 {sendingImage ? (
                   <ActivityIndicator size="small" color={colors.primary} />
@@ -902,15 +851,13 @@ export default function CommunityChatScreen({
                   <Ionicons
                     name="image-outline"
                     size={22}
-                    color={colors.iconMuted}
+                    color={colors.white}
                   />
                 )}
               </Pressable>
             )}
 
-            {/* ---------------------------------------------
-                SEND / REACT
-            --------------------------------------------- */}
+            {/* SEND */}
 
             <Pressable
               onPress={sendTextMessage}
@@ -919,6 +866,7 @@ export default function CommunityChatScreen({
               style={{
                 opacity: message.trim() ? 1 : 0.45,
               }}
+              hitSlop={6}
             >
               <Ionicons
                 name={
@@ -928,7 +876,7 @@ export default function CommunityChatScreen({
                       ? "checkmark"
                       : "send"
                 }
-                size={selectedMessage && !isEditing ? 18 : 18}
+                size={18}
                 color={colors.white}
               />
             </Pressable>
@@ -940,10 +888,6 @@ export default function CommunityChatScreen({
 
   /* =========================================================
      EMBEDDED MODE
-     
-     Important:
-     We still apply bottom inset here because embedded
-     screens can also be covered by the phone gesture area.
   ========================================================= */
 
   if (embedded) {
@@ -988,22 +932,9 @@ const CommunityMessage = memo(function CommunityMessage({
   onLongPress,
   onReaction,
 }) {
-  /*
-      Convert:
+  const [showWebReactions, setShowWebReactions] = useState(false);
 
-      {
-        me: "❤️",
-        mehak: "❤️",
-        aarav: "🐾"
-      }
-
-      into:
-
-      {
-        "❤️": 2,
-        "🐾": 1
-      }
-    */
+  const isWeb = Platform.OS === "web";
 
   const reactionSummary = useMemo(() => {
     const summary = {};
@@ -1021,18 +952,50 @@ const CommunityMessage = memo(function CommunityMessage({
 
   const hasReactions = Object.keys(reactionSummary).length > 0;
 
+  const handleWebReactionButton = useCallback(() => {
+    if (item.deleted) {
+      return;
+    }
+
+    setShowWebReactions((previous) => !previous);
+  }, [item.deleted]);
+
+  const handleWebContextMenu = useCallback(
+    (event) => {
+      if (!isWeb || item.deleted) {
+        return;
+      }
+
+      event?.preventDefault?.();
+
+      setShowWebReactions(true);
+    },
+    [isWeb, item.deleted],
+  );
+
+  const handleReaction = useCallback(
+    (emoji) => {
+      if (item.deleted) {
+        return;
+      }
+
+      onReaction(item.id, emoji);
+
+      setShowWebReactions(false);
+    },
+    [item.deleted, item.id, onReaction],
+  );
+
   return (
     <View className="mb-5">
-      {/* =================================================
-            USER
-        ================================================= */}
+      {/* SENDER */}
 
       <View className="flex-row items-center">
         <View className="h-9 w-9 items-center justify-center rounded-full bg-surface-elevated">
           <Ionicons
             name="person"
             size={17}
-            color={item.admin ? colors.primary : colors.iconMuted}
+            color={item.admin ? colors.primary : colors.white}
           />
         </View>
 
@@ -1047,21 +1010,40 @@ const CommunityMessage = memo(function CommunityMessage({
         )}
       </View>
 
-      {/* =================================================
-            MESSAGE
-        ================================================= */}
+      {/* MESSAGE */}
 
-      <View className="ml-11 mt-1 max-w-[900px]">
+      <View className="relative ml-11 mt-1 max-w-[900px]">
         <Pressable
-          onLongPress={() => onLongPress(item)}
+          onLongPress={() => {
+            if (!item.deleted) {
+              onLongPress(item);
+            }
+          }}
           delayLongPress={350}
+          onContextMenu={handleWebContextMenu}
           className={`rounded-2xl rounded-tl-md border px-4 py-3 ${
             selected
               ? "border-primary bg-surface-elevated"
               : "border-border bg-surface"
           }`}
         >
-          {item.type === "image" ? (
+          {/* DELETED */}
+
+          {item.deleted ? (
+            <View className="flex-row items-center">
+              <Ionicons
+                name="ban-outline"
+                size={17}
+                color={colors.textSecondary}
+              />
+
+              <Text className="ml-2 text-sm italic text-text-secondary">
+                This message was deleted
+              </Text>
+            </View>
+          ) : item.type === "image" ? (
+            /* IMAGE */
+
             <Image
               source={{
                 uri: item.imageUri,
@@ -1070,19 +1052,19 @@ const CommunityMessage = memo(function CommunityMessage({
               resizeMode="cover"
             />
           ) : (
+            /* TEXT */
+
             <Text className="text-base leading-6 text-text-primary">
               {item.message}
             </Text>
           )}
 
-          {/* ---------------------------------------------
-                TIME + EDITED
-            --------------------------------------------- */}
+          {/* TIME */}
 
           <View className="mt-2 flex-row items-center">
             <Text className="text-[10px] text-text-secondary">{item.time}</Text>
 
-            {item.edited && (
+            {item.edited && !item.deleted && (
               <Text className="ml-2 text-[10px] text-text-secondary">
                 edited
               </Text>
@@ -1090,11 +1072,49 @@ const CommunityMessage = memo(function CommunityMessage({
           </View>
         </Pressable>
 
-        {/* =================================================
-              REACTION SUMMARY
-          ================================================= */}
+        {/* WEB REACTION BUTTON */}
 
-        {hasReactions && (
+        {isWeb && !item.deleted && (
+          <Pressable
+            onPress={handleWebReactionButton}
+            className="absolute -right-2 -top-3 h-8 w-8 items-center justify-center rounded-full border border-border bg-surface-elevated"
+            hitSlop={6}
+          >
+            <Ionicons
+              name="happy-outline"
+              size={17}
+              color={showWebReactions ? colors.primary : colors.white}
+            />
+          </Pressable>
+        )}
+
+        {/* WEB REACTION PICKER */}
+
+        {isWeb && showWebReactions && !item.deleted && (
+          <View className="absolute right-0 top-10 z-50 flex-row items-center rounded-2xl border border-border bg-surface-elevated px-2 py-2 shadow-lg">
+            {QUICK_EMOJIS.map((emoji) => {
+              const currentUserReaction = item.reactions?.[CURRENT_USER.id];
+
+              const isMine = currentUserReaction === emoji;
+
+              return (
+                <Pressable
+                  key={emoji}
+                  onPress={() => handleReaction(emoji)}
+                  className={`mx-0.5 h-9 w-9 items-center justify-center rounded-full ${
+                    isMine ? "bg-primary/20" : ""
+                  }`}
+                >
+                  <Text className="text-xl">{emoji}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {/* REACTION SUMMARY */}
+
+        {hasReactions && !item.deleted && (
           <View className="mt-1 flex-row flex-wrap">
             {Object.entries(reactionSummary).map(([emoji, count]) => {
               const currentUserReaction = item.reactions?.[CURRENT_USER.id];
@@ -1127,7 +1147,7 @@ const CommunityMessage = memo(function CommunityMessage({
 });
 
 /* =========================================================
-   GET CURRENT TIME
+   HELPERS
 ========================================================= */
 
 function getCurrentTime() {
@@ -1137,32 +1157,14 @@ function getCurrentTime() {
   });
 }
 
-/* =========================================================
-   GET LAST EMOJI
-     
-   This intentionally keeps the implementation simple
-   and works with normal Unicode emoji input.
-
-   Later, if we need complete grapheme-cluster handling
-   for every complex emoji sequence, this can be moved
-   into a small utility service.
-========================================================= */
-
 function getLastEmoji(value) {
   const characters = Array.from(value.trim());
 
   if (!characters.length) {
     return null;
-  }a
+  }
 
   const lastCharacter = characters[characters.length - 1];
-
-  /*
-    Emoji Unicode ranges.
-
-    This catches common emoji entered from
-    the native emoji keyboard.
-  */
 
   const isEmoji =
     /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/u.test(
@@ -1170,4 +1172,30 @@ function getLastEmoji(value) {
     );
 
   return isEmoji ? lastCharacter : null;
+}
+
+/* =========================================================
+   EMPTY MESSAGES
+========================================================= */
+
+function EmptyMessagesState() {
+  return (
+    <View className="flex-1 items-center justify-center px-8">
+      <View className="h-20 w-20 items-center justify-center rounded-full bg-surface-elevated">
+        <Ionicons
+          name="chatbubbles-outline"
+          size={36}
+          color={colors.iconMuted}
+        />
+      </View>
+
+      <Text className="mt-5 text-xl font-bold text-text-primary">
+        No messages yet
+      </Text>
+
+      <Text className="mt-2 max-w-[400px] text-center text-sm leading-5 text-text-secondary">
+        Start the conversation and be the first to send a message.
+      </Text>
+    </View>
+  );
 }

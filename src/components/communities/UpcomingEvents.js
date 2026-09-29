@@ -21,12 +21,14 @@ export default function UpcomingEvents({ onPress }) {
           Upcoming Events
         </Text>
 
-        <Text className="mt-1 text-sm text-text-secondary">
+        <Text className="mt-1 text-sm leading-5 text-text-secondary">
           Find pet meetups and community activities.
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={21} color={colors.iconMuted} />
+      <View className="ml-2 h-9 w-9 items-center justify-center rounded-full">
+        <Ionicons name="chevron-forward" size={21} color={colors.iconMuted} />
+      </View>
     </Pressable>
   );
 }
