@@ -204,15 +204,9 @@ export default function AboutYouScreen({ navigation }) {
         interests,
         profileImage: profileImage || null,
       });
-
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "Main",
-          },
-        ],
-      });
+     
+      navigation.navigate("PetProfileSetup");
+     
     } catch (error) {
       console.error("ABOUT YOU SAVE ERROR:", error);
 

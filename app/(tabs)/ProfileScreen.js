@@ -1,9 +1,7 @@
 import React from "react";
-import {
-  View,
-  ScrollView,
-  StatusBar,
-} from "react-native";
+
+import { ScrollView, StatusBar, View, useWindowDimensions } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
@@ -17,6 +15,22 @@ import { colors } from "../../src/theme";
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+
+  const { width } = useWindowDimensions();
+
+  const isWeb = width >= 768;
+  const isDesktop = width >= 1100;
+  const isWideDesktop = width >= 1400;
+
+  const horizontalPadding = !isWeb
+    ? 0
+    : isWideDesktop
+      ? 48
+      : isDesktop
+        ? 32
+        : 24;
+
+  const contentMaxWidth = isDesktop ? 1180 : 900;
 
   return (
     <View
@@ -32,19 +46,39 @@ export default function ProfileScreen() {
       />
 
       <View className="flex-1">
-        <ProfileHeader />
+        <View
+          style={{
+            width: "100%",
+            maxWidth: contentMaxWidth,
+            alignSelf: "center",
+            paddingHorizontal: horizontalPadding,
+          }}
+        >
+          <ProfileHeader />
+        </View>
+
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="pb-24"
+          contentContainerStyle={{
+            paddingBottom: isWeb ? 130 : 110,
+            paddingHorizontal: horizontalPadding,
+          }}
         >
-          <ProfileInfo />
-
-          <ProfilePosts />
+          <View
+            style={{
+              width: "100%",
+              maxWidth: contentMaxWidth,
+              alignSelf: "center",
+            }}
+          >
+            <ProfileInfo />
+            <ProfilePosts />
+          </View>
         </ScrollView>
 
         <AddPostButton
           onPress={() => {
-            navigation.navigate("NewPost")
+            navigation.navigate("NewPost");
           }}
         />
       </View>

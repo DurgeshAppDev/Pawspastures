@@ -1,5 +1,14 @@
 import React from "react";
-import { View, Text, Image, Pressable, ScrollView } from "react-native";
+
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors } from "../../theme";
@@ -29,110 +38,168 @@ const PETS = [
 ];
 
 export default function ProfileInfo() {
-  return (
-    <View className="px-4">
-      {/* ================= PROFILE ================= */}
+  const { width } = useWindowDimensions();
 
-      <View className="items-center pt-4">
-        {/* Profile Image */}
+  const isWeb = width >= 768;
+  const isDesktop = width >= 1100;
+
+  return (
+    <View
+      className="px-4"
+      style={{
+        paddingHorizontal: isWeb ? 0 : 16,
+      }}
+    >
+      <View
+        className="items-center"
+        style={{
+          paddingTop: isDesktop ? 28 : 16,
+        }}
+      >
         <View className="relative">
           <View
-            className="h-[94px] w-[94px] items-center justify-center rounded-full border-2"
+            className="items-center justify-center rounded-full border-2"
             style={{
+              width: isDesktop ? 108 : 94,
+              height: isDesktop ? 108 : 94,
               borderColor: colors.primary,
               backgroundColor: colors.surface,
             }}
           >
             <Image
               source={{ uri: PROFILE_IMAGE }}
-              className="h-[86px] w-[86px] rounded-full"
+              className="rounded-full"
+              style={{
+                width: isDesktop ? 98 : 86,
+                height: isDesktop ? 98 : 86,
+              }}
               resizeMode="cover"
             />
           </View>
         </View>
 
-        {/* Name */}
         <Text
-          className="mt-3 text-[18px] font-extrabold"
-          style={{ color: colors["text-primary"] }}
+          className="font-extrabold"
+          style={{
+            marginTop: isDesktop ? 15 : 12,
+            color: colors["text-primary"],
+            fontSize: isDesktop ? 21 : 18,
+          }}
         >
           Alice
         </Text>
 
-        {/* Age / Location */}
         <Text
-          className="mt-1 text-[13px]"
-          style={{ color: colors["text-secondary"] }}
+          style={{
+            marginTop: 4,
+            color: colors["text-secondary"],
+            fontSize: isDesktop ? 14 : 13,
+          }}
         >
           21 • Ludhiana
         </Text>
 
-        {/* Interests */}
-        <View className="mt-3 flex-row items-center">
-          {/* Pet Lover */}
+        <View
+          className="flex-row items-center"
+          style={{
+            marginTop: 12,
+          }}
+        >
           <View
             className="mr-2 flex-row items-center rounded-full border bg-surface px-3 py-1.5"
-            style={{ borderColor: colors.border }}
+            style={{
+              borderColor: colors.border,
+            }}
           >
             <Ionicons name="paw" size={13} color={colors.accent} />
 
             <Text
-              className="ml-1.5 text-[12px] font-semibold"
-              style={{ color: colors["text-primary"] }}
+              className="ml-1.5 font-semibold"
+              style={{
+                color: colors["text-primary"],
+                fontSize: 12,
+              }}
             >
               Pet Lover
             </Text>
           </View>
 
-          {/* Photography */}
           <View
             className="flex-row items-center rounded-full border bg-surface px-3 py-1.5"
-            style={{ borderColor: colors.border }}
+            style={{
+              borderColor: colors.border,
+            }}
           >
             <Ionicons name="camera-outline" size={13} color={colors.accent} />
 
             <Text
-              className="ml-1.5 text-[12px] font-semibold"
-              style={{ color: colors["text-primary"] }}
+              className="ml-1.5 font-semibold"
+              style={{
+                color: colors["text-primary"],
+                fontSize: 12,
+              }}
             >
               Photography
             </Text>
           </View>
         </View>
 
-        {/* Bio */}
-        <View className="mt-3 w-full px-2">
+        <View
+          style={{
+            marginTop: 12,
+            width: "100%",
+            maxWidth: isDesktop ? 620 : 520,
+            paddingHorizontal: isDesktop ? 20 : 8,
+          }}
+        >
           <Text
             numberOfLines={2}
             ellipsizeMode="tail"
-            className="text-center text-[13px] leading-[19px]"
-            style={{ color: colors["text-secondary"] }}
+            className="text-center"
+            style={{
+              color: colors["text-secondary"],
+              fontSize: isDesktop ? 14 : 13,
+              lineHeight: isDesktop ? 21 : 19,
+            }}
           >
             Pet lover, photographer and always looking for new adventures with
             my furry friends.
           </Text>
         </View>
-        {/* Profile Actions */}
-        <View className="mt-4 w-full flex-row items-center">
-          <Pressable className="mt-4 w-full items-center justify-center rounded-xl bg-primary py-3.5">
-            <Text
-              className="text-[13px] font-extrabold"
-              style={{ color: colors.background }}
-            >
-              Edit Profile
-            </Text>
-          </Pressable>
-        </View>
+
+        <Pressable
+          className="items-center justify-center rounded-xl bg-primary"
+          style={{
+            marginTop: 18,
+            width: isDesktop ? 190 : "100%",
+            maxWidth: 420,
+            paddingVertical: 13,
+          }}
+        >
+          <Text
+            className="font-extrabold"
+            style={{
+              color: colors.background,
+              fontSize: 13,
+            }}
+          >
+            Edit Profile
+          </Text>
+        </Pressable>
       </View>
 
-      {/* ================= IDENTITIES ================= */}
-
-      <View className="mt-7">
-        {/* Section Header */}
+      <View
+        style={{
+          marginTop: isDesktop ? 34 : 28,
+        }}
+      >
         <View className="mb-3.5 flex-row items-center justify-between">
           <Text
-            className="text-[14px] font-extrabold"
-            style={{ color: colors["text-primary"] }}
+            className="font-extrabold"
+            style={{
+              color: colors["text-primary"],
+              fontSize: 14,
+            }}
           >
             Identities
           </Text>
@@ -141,41 +208,59 @@ export default function ProfileInfo() {
             <Ionicons name="add" size={17} color={colors.accent} />
 
             <Text
-              className="ml-0.5 text-[12px] font-semibold"
-              style={{ color: colors.accent }}
+              className="ml-0.5 font-semibold"
+              style={{
+                color: colors.accent,
+                fontSize: 12,
+              }}
             >
               Add Pet
             </Text>
           </Pressable>
         </View>
 
-        {/* Pets */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="pr-2"
+          contentContainerStyle={{
+            paddingRight: 8,
+          }}
         >
           {PETS.map((pet) => (
-            <View key={pet.id} className="mr-6 items-center">
+            <View
+              key={pet.id}
+              className="items-center"
+              style={{
+                marginRight: isDesktop ? 30 : 24,
+              }}
+            >
               <View className="relative">
                 <View
-                  className="h-[58px] w-[58px] items-center justify-center rounded-full border-2"
+                  className="items-center justify-center rounded-full border-2"
                   style={{
+                    width: isDesktop ? 64 : 58,
+                    height: isDesktop ? 64 : 58,
                     borderColor: pet.active ? colors.primary : colors.border,
                     backgroundColor: colors.surface,
                   }}
                 >
                   <Image
                     source={{ uri: pet.image }}
-                    className="h-[52px] w-[52px] rounded-full"
+                    className="rounded-full"
+                    style={{
+                      width: isDesktop ? 58 : 52,
+                      height: isDesktop ? 58 : 52,
+                    }}
                     resizeMode="cover"
                   />
                 </View>
 
                 {pet.active && (
                   <View
-                    className="absolute -bottom-1 -right-1 h-5 w-5 items-center justify-center rounded-full border-2"
+                    className="absolute -bottom-1 -right-1 items-center justify-center rounded-full border-2"
                     style={{
+                      width: 20,
+                      height: 20,
                       backgroundColor: colors.primary,
                       borderColor: colors.background,
                     }}
@@ -186,8 +271,11 @@ export default function ProfileInfo() {
               </View>
 
               <Text
-                className="mt-2 text-[11px]"
-                style={{ color: colors["text-secondary"] }}
+                className="mt-2"
+                style={{
+                  color: colors["text-secondary"],
+                  fontSize: 11,
+                }}
               >
                 {pet.name}
               </Text>

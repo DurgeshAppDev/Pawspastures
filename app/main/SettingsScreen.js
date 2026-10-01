@@ -9,6 +9,7 @@ import {
   Switch,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -28,29 +29,23 @@ import {
   requestGalleryPermission,
 } from "../../src/services/permissions";
 
-/**
- * =========================================================
- * SETTINGS SCREEN
- * =========================================================
- */
+import { logoutUser } from "../../src/services/AuthServices";
+
 export default function SettingsScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+
+  const isWeb = width >= 768;
+  const isDesktop = width >= 1100;
+  const isWideDesktop = width >= 1400;
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
   const [cameraEnabled, setCameraEnabled] = useState(false);
-
   const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
-
   const [mediaEnabled, setMediaEnabled] = useState(false);
 
   const [darkMode, setDarkMode] = useState(true);
-
   const [autoPlayVideos, setAutoPlayVideos] = useState(true);
 
-  /**
-   * ---------------------------------------------------------
-   * LOAD PERMISSION STATES
-   * ---------------------------------------------------------
-   */
   useEffect(() => {
     loadPermissions();
   }, []);
@@ -61,13 +56,17 @@ export default function SettingsScreen({ navigation }) {
         return;
       }
 
-      const notification = await Notifications.getPermissionsAsync();
+      const notification =
+        await Notifications.getPermissionsAsync();
 
-      const camera = await Camera.getCameraPermissionsAsync();
+      const camera =
+        await Camera.getCameraPermissionsAsync();
 
-      const microphone = await Camera.getMicrophonePermissionsAsync();
+      const microphone =
+        await Camera.getMicrophonePermissionsAsync();
 
-      const media = await ImagePicker.getMediaLibraryPermissionsAsync();
+      const media =
+        await ImagePicker.getMediaLibraryPermissionsAsync();
 
       setNotificationsEnabled(notification.granted);
       setCameraEnabled(camera.granted);
@@ -78,11 +77,25 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  /**
-   * ---------------------------------------------------------
-   * NOTIFICATION
-   * ---------------------------------------------------------
-   */
+  const showPermissionSettingsAlert = (permission) => {
+    Alert.alert(
+      "Permission Required",
+      `Paws & Pastures needs ${permission} permission for this feature.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Open Settings",
+          onPress: () => {
+            Linking.openSettings();
+          },
+        },
+      ],
+    );
+  };
+
   const handleNotificationToggle = async (value) => {
     if (!value) {
       Alert.alert(
@@ -107,7 +120,8 @@ export default function SettingsScreen({ navigation }) {
       return;
     }
 
-    const allowed = await requestNotificationPermission();
+    const allowed =
+      await requestNotificationPermission();
 
     setNotificationsEnabled(allowed);
 
@@ -116,11 +130,6 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  /**
-   * ---------------------------------------------------------
-   * CAMERA
-   * ---------------------------------------------------------
-   */
   const handleCameraToggle = async (value) => {
     if (!value) {
       Alert.alert(
@@ -143,7 +152,8 @@ export default function SettingsScreen({ navigation }) {
       return;
     }
 
-    const allowed = await requestCameraPermission();
+    const allowed =
+      await requestCameraPermission();
 
     setCameraEnabled(allowed);
 
@@ -152,11 +162,6 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  /**
-   * ---------------------------------------------------------
-   * MICROPHONE
-   * ---------------------------------------------------------
-   */
   const handleMicrophoneToggle = async (value) => {
     if (!value) {
       Alert.alert(
@@ -179,7 +184,8 @@ export default function SettingsScreen({ navigation }) {
       return;
     }
 
-    const allowed = await requestMicrophonePermission();
+    const allowed =
+      await requestMicrophonePermission();
 
     setMicrophoneEnabled(allowed);
 
@@ -188,11 +194,6 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  /**
-   * ---------------------------------------------------------
-   * MEDIA
-   * ---------------------------------------------------------
-   */
   const handleMediaToggle = async (value) => {
     if (!value) {
       Alert.alert(
@@ -215,46 +216,23 @@ export default function SettingsScreen({ navigation }) {
       return;
     }
 
-    const allowed = await requestGalleryPermission();
+    const allowed =
+      await requestGalleryPermission();
 
     setMediaEnabled(allowed);
 
     if (!allowed) {
-      showPermissionSettingsAlert("photos and media");
+      showPermissionSettingsAlert(
+        "photos and media",
+      );
     }
   };
 
-  /**
-   * ---------------------------------------------------------
-   * PERMISSION SETTINGS ALERT
-   * ---------------------------------------------------------
-   */
-  const showPermissionSettingsAlert = (permission) => {
-    Alert.alert(
-      "Permission Required",
-      `Paws & Pastures needs ${permission} permission for this feature.`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Open Settings",
-          onPress: () => {
-            Linking.openSettings();
-          },
-        },
-      ],
-    );
-  };
-
-  /**
-   * ---------------------------------------------------------
-   * LOGOUT
-   * ---------------------------------------------------------
-   */
-  const handleLogout = () => {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
+const handleLogout = () => {
+  Alert.alert(
+    "Log Out",
+    "Are you sure you want to log out?",
+    [
       {
         text: "Cancel",
         style: "cancel",
@@ -264,36 +242,29 @@ export default function SettingsScreen({ navigation }) {
         style: "destructive",
         onPress: async () => {
           try {
-            /**
-             * Firebase logout will be connected here.
-             *
-             * Example:
-             *
-             * await signOut(auth);
-             *
-             * Your App.js auth listener should then
-             * automatically show AuthLayout.
-             */
+            await logoutUser();
 
-            console.log("User logout requested.");
+            console.log(
+              "Firebase logout successful.",
+            );
           } catch (error) {
-            console.log("Logout error:", error);
+            console.log(
+              "Firebase logout error:",
+              error,
+            );
 
             Alert.alert(
               "Logout Failed",
-              "Something went wrong while logging out.",
+              error?.message ||
+                "Something went wrong while logging out.",
             );
           }
         },
       },
-    ]);
-  };
+    ],
+  );
+};
 
-  /**
-   * ---------------------------------------------------------
-   * DELETE ACCOUNT
-   * ---------------------------------------------------------
-   */
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
@@ -307,19 +278,9 @@ export default function SettingsScreen({ navigation }) {
           text: "Delete Account",
           style: "destructive",
           onPress: () => {
-            /**
-             * Firebase account deletion will be
-             * connected here.
-             *
-             * Usually:
-             *
-             * await deleteUser(auth.currentUser);
-             *
-             * Firestore user data should also be
-             * handled according to your backend rules.
-             */
-
-            console.log("Account deletion requested.");
+            console.log(
+              "Account deletion requested.",
+            );
 
             Alert.alert(
               "Delete Account",
@@ -331,11 +292,6 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
-  /**
-   * ---------------------------------------------------------
-   * SIMPLE ROW
-   * ---------------------------------------------------------
-   */
   const SettingRow = ({
     icon,
     title,
@@ -348,11 +304,18 @@ export default function SettingsScreen({ navigation }) {
       <Pressable
         onPress={onPress}
         disabled={!onPress}
-        className="flex-row items-center px-4 py-4"
+        className="flex-row items-center"
+        style={{
+          paddingHorizontal: isDesktop ? 22 : 16,
+          paddingVertical: isDesktop ? 17 : 16,
+        }}
       >
         <View
-          className="mr-4 h-11 w-11 items-center justify-center rounded-2xl"
+          className="items-center justify-center rounded-2xl"
           style={{
+            width: isDesktop ? 46 : 44,
+            height: isDesktop ? 46 : 44,
+            marginRight: isDesktop ? 16 : 14,
             backgroundColor: danger
               ? colors["surface-icon"]
               : colors["surface-elevated"],
@@ -361,15 +324,22 @@ export default function SettingsScreen({ navigation }) {
           <Ionicons
             name={icon}
             size={22}
-            color={danger ? colors.primary : colors["text-primary"]}
+            color={
+              danger
+                ? colors.primary
+                : colors["text-primary"]
+            }
           />
         </View>
 
         <View className="flex-1">
           <Text
-            className="text-[16px] font-semibold"
+            className="font-semibold"
             style={{
-              color: danger ? colors.primary : colors["text-primary"],
+              color: danger
+                ? colors.primary
+                : colors["text-primary"],
+              fontSize: isDesktop ? 15 : 16,
             }}
           >
             {title}
@@ -377,9 +347,11 @@ export default function SettingsScreen({ navigation }) {
 
           {subtitle ? (
             <Text
-              className="mt-1 text-[13px]"
+              className="mt-1"
               style={{
                 color: colors["text-secondary"],
+                fontSize: 13,
+                lineHeight: 18,
               }}
             >
               {subtitle}
@@ -400,37 +372,55 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
-  /**
-   * ---------------------------------------------------------
-   * SWITCH ROW
-   * ---------------------------------------------------------
-   */
-  const PermissionRow = ({ icon, title, subtitle, value, onValueChange }) => {
+  const PermissionRow = ({
+    icon,
+    title,
+    subtitle,
+    value,
+    onValueChange,
+  }) => {
     return (
-      <View className="flex-row items-center px-4 py-4">
+      <View
+        className="flex-row items-center"
+        style={{
+          paddingHorizontal: isDesktop ? 22 : 16,
+          paddingVertical: isDesktop ? 17 : 16,
+        }}
+      >
         <View
-          className="mr-4 h-11 w-11 items-center justify-center rounded-2xl"
+          className="items-center justify-center rounded-2xl"
           style={{
-            backgroundColor: colors["surface-elevated"],
+            width: isDesktop ? 46 : 44,
+            height: isDesktop ? 46 : 44,
+            marginRight: isDesktop ? 16 : 14,
+            backgroundColor:
+              colors["surface-elevated"],
           }}
         >
-          <Ionicons name={icon} size={22} color={colors["text-primary"]} />
+          <Ionicons
+            name={icon}
+            size={22}
+            color={colors["text-primary"]}
+          />
         </View>
 
         <View className="flex-1">
           <Text
-            className="text-[16px] font-semibold"
+            className="font-semibold"
             style={{
               color: colors["text-primary"],
+              fontSize: isDesktop ? 15 : 16,
             }}
           >
             {title}
           </Text>
 
           <Text
-            className="mt-1 text-[13px]"
+            className="mt-1"
             style={{
               color: colors["text-secondary"],
+              fontSize: 13,
+              lineHeight: 18,
             }}
           >
             {subtitle}
@@ -451,6 +441,52 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
+  const SectionTitle = ({ children }) => (
+    <Text
+      className="font-bold uppercase"
+      style={{
+        color: colors.primary,
+        fontSize: 12,
+        letterSpacing: 0.8,
+        marginBottom: 8,
+        marginTop: isDesktop ? 28 : 24,
+      }}
+    >
+      {children}
+    </Text>
+  );
+
+  const SectionCard = ({ children }) => (
+    <View
+      className="overflow-hidden rounded-2xl"
+      style={{
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors["border-subtle"],
+      }}
+    >
+      {children}
+    </View>
+  );
+
+  const Divider = () => (
+    <View
+      style={{
+        height: 1,
+        marginHorizontal: isDesktop ? 22 : 16,
+        backgroundColor: colors["border-subtle"],
+      }}
+    />
+  );
+
+  const contentMaxWidth = isDesktop ? 760 : 620;
+
+  const horizontalPadding = !isWeb
+    ? 16
+    : isWideDesktop
+      ? 32
+      : 24;
+
   return (
     <SafeAreaView
       className="flex-1"
@@ -459,417 +495,325 @@ export default function SettingsScreen({ navigation }) {
         backgroundColor: colors.background,
       }}
     >
-      {/* ===================================================
-          HEADER
-          =================================================== */}
       <View
-        className="flex-row items-center px-5 pb-4 pt-2"
         style={{
-          borderBottomWidth: 1,
-          borderBottomColor: colors["border-subtle"],
+          width: "100%",
+          maxWidth: contentMaxWidth,
+          alignSelf: "center",
+          flex: 1,
         }}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          className="mr-4 h-11 w-11 items-center justify-center rounded-full"
+        <View
+          className="flex-row items-center"
           style={{
-            backgroundColor: colors["surface-elevated"],
+            paddingHorizontal: horizontalPadding,
+            paddingTop: isDesktop ? 18 : 8,
+            paddingBottom: isDesktop ? 18 : 16,
+            borderBottomWidth: 1,
+            borderBottomColor:
+              colors["border-subtle"],
           }}
         >
-          <Ionicons
-            name="arrow-back"
-            size={23}
-            color={colors["text-primary"]}
-          />
-        </Pressable>
-
-        <View>
-          <Text
-            className="text-[24px] font-bold"
+          <Pressable
+            onPress={() => navigation.goBack()}
+            className="items-center justify-center rounded-full"
             style={{
-              color: colors["text-primary"],
+              width: 42,
+              height: 42,
+              marginRight: 14,
+              backgroundColor:
+                colors["surface-elevated"],
             }}
           >
-            Settings
-          </Text>
+            <Ionicons
+              name="arrow-back"
+              size={22}
+              color={colors["text-primary"]}
+            />
+          </Pressable>
 
-          <Text
-            className="mt-1 text-[13px]"
-            style={{
-              color: colors["text-secondary"],
-            }}
-          >
-            Manage your account and preferences
-          </Text>
-        </View>
-      </View>
+          <View className="flex-1">
+            <Text
+              className="font-bold"
+              style={{
+                color: colors["text-primary"],
+                fontSize: isDesktop ? 25 : 24,
+              }}
+            >
+              Settings
+            </Text>
 
-      {/* ===================================================
-          CONTENT
-          =================================================== */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: 35,
-        }}
-      >
-        {/* =================================================
-            ACCOUNT
-            ================================================= */}
-        <Text
-          className="px-5 pb-2 pt-6 text-[13px] font-bold uppercase"
-          style={{
-            color: colors.primary,
-          }}
-        >
-          Account
-        </Text>
-
-        <View
-          className="mx-4 overflow-hidden rounded-2xl"
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors["border-subtle"],
-          }}
-        >
-          <SettingRow
-            icon="person-outline"
-            title="Edit Profile"
-            subtitle="Update your profile and pet information"
-            onPress={() => {
-              Alert.alert(
-                "Edit Profile",
-                "Profile editing screen will be connected here.",
-              );
-            }}
-          />
-
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
-
-          <SettingRow
-            icon="lock-closed-outline"
-            title="Change Password"
-            subtitle="Update your account password"
-            onPress={() => {
-              Alert.alert(
-                "Change Password",
-                "Password change screen will be connected here.",
-              );
-            }}
-          />
+            <Text
+              className="mt-1"
+              style={{
+                color: colors["text-secondary"],
+                fontSize: 13,
+              }}
+            >
+              Manage your account and preferences
+            </Text>
+          </View>
         </View>
 
-        {/* =================================================
-            PERMISSIONS
-            ================================================= */}
-        <Text
-          className="px-5 pb-2 pt-7 text-[13px] font-bold uppercase"
-          style={{
-            color: colors.primary,
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: horizontalPadding,
+            paddingBottom: isDesktop ? 50 : 35,
           }}
         >
-          Permissions
-        </Text>
+          <SectionTitle>
+            Account
+          </SectionTitle>
 
-        <View
-          className="mx-4 overflow-hidden rounded-2xl"
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors["border-subtle"],
-          }}
-        >
-          <PermissionRow
-            icon="notifications-outline"
-            title="Notifications"
-            subtitle="Receive story and activity notifications"
-            value={notificationsEnabled}
-            onValueChange={handleNotificationToggle}
-          />
+          <SectionCard>
+            <SettingRow
+              icon="person-outline"
+              title="Edit Profile"
+              subtitle="Update your profile and pet information"
+              onPress={() => {
+                Alert.alert(
+                  "Edit Profile",
+                  "Profile editing screen will be connected here.",
+                );
+              }}
+            />
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+            <Divider />
 
-          <PermissionRow
-            icon="camera-outline"
-            title="Camera"
-            subtitle="Allow camera access for photos and videos"
-            value={cameraEnabled}
-            onValueChange={handleCameraToggle}
-          />
+            <SettingRow
+              icon="lock-closed-outline"
+              title="Change Password"
+              subtitle="Update your account password"
+              onPress={() => {
+                Alert.alert(
+                  "Change Password",
+                  "Password change screen will be connected here.",
+                );
+              }}
+            />
+          </SectionCard>
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+          <SectionTitle>
+            Permissions
+          </SectionTitle>
 
-          <PermissionRow
-            icon="mic-outline"
-            title="Microphone"
-            subtitle="Allow microphone access for video recording"
-            value={microphoneEnabled}
-            onValueChange={handleMicrophoneToggle}
-          />
+          <SectionCard>
+            <PermissionRow
+              icon="notifications-outline"
+              title="Notifications"
+              subtitle="Receive story and activity notifications"
+              value={notificationsEnabled}
+              onValueChange={
+                handleNotificationToggle
+              }
+            />
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+            <Divider />
 
-          <PermissionRow
-            icon="images-outline"
-            title="Photos & Media"
-            subtitle="Allow access to photos and videos"
-            value={mediaEnabled}
-            onValueChange={handleMediaToggle}
-          />
-        </View>
+            <PermissionRow
+              icon="camera-outline"
+              title="Camera"
+              subtitle="Allow camera access for photos and videos"
+              value={cameraEnabled}
+              onValueChange={handleCameraToggle}
+            />
 
-        {/* =================================================
-            PREFERENCES
-            ================================================= */}
-        <Text
-          className="px-5 pb-2 pt-7 text-[13px] font-bold uppercase"
-          style={{
-            color: colors.primary,
-          }}
-        >
-          Preferences
-        </Text>
+            <Divider />
 
-        <View
-          className="mx-4 overflow-hidden rounded-2xl"
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors["border-subtle"],
-          }}
-        >
-          <PermissionRow
-            icon="moon-outline"
-            title="Dark Mode"
-            subtitle="Use the dark Paws & Pastures appearance"
-            value={darkMode}
-            onValueChange={setDarkMode}
-          />
+            <PermissionRow
+              icon="mic-outline"
+              title="Microphone"
+              subtitle="Allow microphone access for video recording"
+              value={microphoneEnabled}
+              onValueChange={
+                handleMicrophoneToggle
+              }
+            />
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+            <Divider />
 
-          <PermissionRow
-            icon="play-circle-outline"
-            title="Auto-play Videos"
-            subtitle="Automatically play videos while browsing"
-            value={autoPlayVideos}
-            onValueChange={setAutoPlayVideos}
-          />
-        </View>
+            <PermissionRow
+              icon="images-outline"
+              title="Photos & Media"
+              subtitle="Allow access to photos and videos"
+              value={mediaEnabled}
+              onValueChange={handleMediaToggle}
+            />
+          </SectionCard>
 
-        {/* =================================================
-            ABOUT
-            ================================================= */}
-        <Text
-          className="px-5 pb-2 pt-7 text-[13px] font-bold uppercase"
-          style={{
-            color: colors.primary,
-          }}
-        >
-          About
-        </Text>
+          <SectionTitle>
+            Preferences
+          </SectionTitle>
 
-        <View
-          className="mx-4 overflow-hidden rounded-2xl"
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors["border-subtle"],
-          }}
-        >
-          <SettingRow
-            icon="paw-outline"
-            title="About Paws & Pastures"
-            subtitle="Learn more about our app"
-            onPress={() => {
-              Alert.alert(
-                "Paws & Pastures",
-                "A social community where pets bring people together.",
-              );
-            }}
-          />
+          <SectionCard>
+            <PermissionRow
+              icon="moon-outline"
+              title="Dark Mode"
+              subtitle="Use the dark Paws & Pastures appearance"
+              value={darkMode}
+              onValueChange={setDarkMode}
+            />
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+            <Divider />
 
-          <SettingRow
-            icon="shield-checkmark-outline"
-            title="Privacy Policy"
-            subtitle="Learn how your information is handled"
-            onPress={() => {
-              Alert.alert(
-                "Privacy Policy",
-                "Privacy Policy page will be connected here.",
-              );
-            }}
-          />
+            <PermissionRow
+              icon="play-circle-outline"
+              title="Auto-play Videos"
+              subtitle="Automatically play videos while browsing"
+              value={autoPlayVideos}
+              onValueChange={setAutoPlayVideos}
+            />
+          </SectionCard>
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+          <SectionTitle>
+            About
+          </SectionTitle>
 
-          <SettingRow
-            icon="document-text-outline"
-            title="Terms & Conditions"
-            subtitle="Review the terms of using Paws & Pastures"
-            onPress={() => {
-              Alert.alert(
-                "Terms & Conditions",
-                "Terms and Conditions page will be connected here.",
-              );
-            }}
-          />
-        </View>
+          <SectionCard>
+            <SettingRow
+              icon="paw-outline"
+              title="About Paws & Pastures"
+              subtitle="Learn more about our app"
+              onPress={() => {
+                Alert.alert(
+                  "Paws & Pastures",
+                  "A social community where pets bring people together.",
+                );
+              }}
+            />
 
-        {/* =================================================
-            SUPPORT
-            ================================================= */}
-        <Text
-          className="px-5 pb-2 pt-7 text-[13px] font-bold uppercase"
-          style={{
-            color: colors.primary,
-          }}
-        >
-          Support
-        </Text>
+            <Divider />
 
-        <View
-          className="mx-4 overflow-hidden rounded-2xl"
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors["border-subtle"],
-          }}
-        >
-          <SettingRow
-            icon="help-circle-outline"
-            title="Help & Support"
-            subtitle="Get help with your account"
-            onPress={() => {
-              Alert.alert(
-                "Help & Support",
-                "Support center will be connected here.",
-              );
-            }}
-          />
+            <SettingRow
+              icon="shield-checkmark-outline"
+              title="Privacy Policy"
+              subtitle="Learn how your information is handled"
+              onPress={() => {
+                Alert.alert(
+                  "Privacy Policy",
+                  "Privacy Policy page will be connected here.",
+                );
+              }}
+            />
 
-          <View
-            className="mx-4 h-px"
-            style={{
-              backgroundColor: colors["border-subtle"],
-            }}
-          />
+            <Divider />
 
-          <SettingRow
-            icon="flag-outline"
-            title="Report a Problem"
-            subtitle="Tell us about an issue"
-            onPress={() => {
-              Alert.alert(
-                "Report a Problem",
-                "Problem reporting will be connected here.",
-              );
-            }}
-          />
-        </View>
+            <SettingRow
+              icon="document-text-outline"
+              title="Terms & Conditions"
+              subtitle="Review the terms of using Paws & Pastures"
+              onPress={() => {
+                Alert.alert(
+                  "Terms & Conditions",
+                  "Terms and Conditions page will be connected here.",
+                );
+              }}
+            />
+          </SectionCard>
 
-        {/* =================================================
-            LOGOUT
-            ================================================= */}
-        <View className="mx-4 mt-8">
+          <SectionTitle>
+            Support
+          </SectionTitle>
+
+          <SectionCard>
+            <SettingRow
+              icon="help-circle-outline"
+              title="Help & Support"
+              subtitle="Get help with your account"
+              onPress={() => {
+                Alert.alert(
+                  "Help & Support",
+                  "Support center will be connected here.",
+                );
+              }}
+            />
+
+            <Divider />
+
+            <SettingRow
+              icon="flag-outline"
+              title="Report a Problem"
+              subtitle="Tell us about an issue"
+              onPress={() => {
+                Alert.alert(
+                  "Report a Problem",
+                  "Problem reporting will be connected here.",
+                );
+              }}
+            />
+          </SectionCard>
+
           <Pressable
             onPress={handleLogout}
-            className="h-[54px] flex-row items-center justify-center rounded-2xl"
+            className="flex-row items-center justify-center rounded-2xl"
             style={{
-              backgroundColor: colors["surface-elevated"],
+              height: 54,
+              marginTop: isDesktop ? 30 : 28,
+              backgroundColor:
+                colors["surface-elevated"],
               borderWidth: 1,
               borderColor: colors.border,
             }}
           >
-            <Ionicons name="log-out-outline" size={22} color={colors.primary} />
+            <Ionicons
+              name="log-out-outline"
+              size={22}
+              color={colors.primary}
+            />
 
             <Text
-              className="ml-3 text-[16px] font-bold"
+              className="ml-3 font-bold"
               style={{
                 color: colors.primary,
+                fontSize: 16,
               }}
             >
               Log Out
             </Text>
           </Pressable>
-        </View>
 
-        {/* =================================================
-            DELETE ACCOUNT
-            ================================================= */}
-        <Pressable
-          onPress={handleDeleteAccount}
-          className="mt-5 items-center px-5"
-        >
-          <Text
-            className="text-[14px] font-semibold"
+          <Pressable
+            onPress={handleDeleteAccount}
+            className="items-center"
             style={{
-              color: colors["text-muted"],
+              marginTop: 20,
             }}
           >
-            Delete Account
+            <Text
+              className="font-semibold"
+              style={{
+                color: colors["text-muted"],
+                fontSize: 14,
+              }}
+            >
+              Delete Account
+            </Text>
+          </Pressable>
+
+          <Text
+            className="text-center"
+            style={{
+              color: colors["text-placeholder"],
+              fontSize: 12,
+              marginTop: 20,
+            }}
+          >
+            Paws & Pastures
           </Text>
-        </Pressable>
 
-        {/* =================================================
-            VERSION
-            ================================================= */}
-        <Text
-          className="mt-5 text-center text-[12px]"
-          style={{
-            color: colors["text-placeholder"],
-          }}
-        >
-          Paws & Pastures
-        </Text>
-
-        <Text
-          className="mt-1 text-center text-[11px]"
-          style={{
-            color: colors["text-placeholder"],
-          }}
-        >
-          Version 1.0.0
-        </Text>
-      </ScrollView>
+          <Text
+            className="text-center"
+            style={{
+              color: colors["text-placeholder"],
+              fontSize: 11,
+              marginTop: 4,
+            }}
+          >
+            Version 1.0.0
+          </Text>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

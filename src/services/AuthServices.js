@@ -248,6 +248,11 @@ export const resetPassword = async (
 };
 
 // LOGOUT
+// LOGOUT
 export const logoutUser = async () => {
+  if (!auth.currentUser) {
+    return;
+  }
+
   await signOut(auth);
 };
