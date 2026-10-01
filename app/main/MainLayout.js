@@ -1,10 +1,13 @@
 import React from "react";
+
 import { Platform, useWindowDimensions } from "react-native";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import { Ionicons } from "@expo/vector-icons";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HomeScreen from "../(tabs)/HomeScreen";
@@ -53,15 +56,18 @@ function MobileTabs() {
         tabBarShowLabel: true,
 
         tabBarActiveTintColor: colors.primary,
+
         tabBarInactiveTintColor: colors["text-secondary"],
 
         tabBarStyle: {
           backgroundColor: colors.surface,
+
           borderTopColor: colors.border,
 
           height: 62 + insets.bottom,
 
           paddingTop: 6,
+
           paddingBottom: Math.max(insets.bottom, 6),
 
           elevation: 10,
@@ -127,6 +133,11 @@ function MobileTabs() {
   );
 }
 
+/**
+ * =========================================================
+ * WEB TABS
+ * =========================================================
+ */
 function WebTabs() {
   const { width } = useWindowDimensions();
 
@@ -141,27 +152,39 @@ function WebTabs() {
 
         /**
          * Desktop:
-         * sidebar on the left.
+         * left sidebar.
          *
-         * Smaller Web:
-         * bottom navigation.
+         * Phone Web:
+         * top navigation bar.
+         *
+         * The top position is intentional:
+         * it makes the mobile Web navigation part of
+         * the layout instead of floating over screen
+         * headers.
          */
-        tabBarPosition: isDesktop ? "left" : "bottom",
+        tabBarPosition: isDesktop ? "left" : "top",
 
-        /**
-         * This makes the left sidebar behave like a
-         * compact application navigation.
-         */
         ...(isDesktop
           ? {
               tabBarStyle: {
                 width: WEB_SIDEBAR_WIDTH,
+
                 backgroundColor: colors.surface,
+
                 borderRightColor: colors.border,
+
                 borderRightWidth: 1,
+
+                overflow: "visible",
               },
             }
-          : {}),
+          : {
+              tabBarStyle: {
+                backgroundColor: colors.background,
+
+                borderBottomWidth: 0,
+              },
+            }),
       }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -222,9 +245,16 @@ export default function MainLayout() {
       {/* Community screens */}
 
       <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
-      <Stack.Screen  name="RecommendedGroups"   component={RecommendedGroupsScreen}/>
+
+      <Stack.Screen
+        name="RecommendedGroups"
+        component={RecommendedGroupsScreen}
+      />
+
       <Stack.Screen name="UpcomingEvents" component={UpcomingEventsScreen} />
+
       <Stack.Screen name="CreateCommunity" component={CreateCommunityScreen} />
+
       <Stack.Screen name="CommunityInfo" component={CommunityInfoScreen} />
     </Stack.Navigator>
   );
