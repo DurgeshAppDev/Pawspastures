@@ -1,8 +1,6 @@
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { db } from "../config/firebase";
-
-// GET USER PROFILE
 
 export const getUserProfile = async (uid) => {
   if (!uid) {
@@ -22,8 +20,6 @@ export const getUserProfile = async (uid) => {
     ...snapshot.data(),
   };
 };
-
-// CREATE USER PROFILE
 
 export const createUserProfile = async (
   uid,
@@ -48,10 +44,11 @@ export const createUserProfile = async (
 
   const profile = {
     uid,
-    name,
-    email,
+    name: name || "",
+    email: email || "",
     authProvider,
-    profileCompleted: false,
+    onboardingCompleted: false,
+    onboardingVersion: 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

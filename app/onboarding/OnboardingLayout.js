@@ -7,7 +7,7 @@ import PetProfileSetupScreen from "./PetProfileSetupScreen";
 
 const Stack = createNativeStackNavigator();
 
-export default function OnboardingLayout() {
+export default function OnboardingLayout({ onComplete }) {
   return (
     <Stack.Navigator
       initialRouteName="AboutYou"
@@ -19,7 +19,11 @@ export default function OnboardingLayout() {
     >
       <Stack.Screen name="AboutYou" component={AboutYouScreen} />
 
-      <Stack.Screen name="PetProfileSetup" component={PetProfileSetupScreen} />
+      <Stack.Screen name="PetProfileSetup">
+        {(props) => (
+          <PetProfileSetupScreen {...props} onComplete={onComplete} />
+        )}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }

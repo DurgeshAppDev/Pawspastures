@@ -1,18 +1,25 @@
 import "./global.css";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
-import { ActivityIndicator, Platform, StatusBar, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StatusBar,
+  Text,
+  View,
+} from "react-native";
 
 import { NavigationContainer } from "@react-navigation/native";
 
 import { onAuthStateChanged } from "firebase/auth";
 
-import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
-
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { auth, db } from "./src/config/firebase";
+import { auth } from "./src/config/firebase";
+
+import { getUserProfile } from "./src/services/userServices";
 
 import { requestStartupPermissions } from "./src/services/permissions";
 
@@ -29,124 +36,109 @@ export default function App() {
 
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  useEffect(() => {
-    let unsubscribeUserDocument = null;
+  const [profileError, setProfileError] = useState(null);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      if (unsubscribeUserDocument) {
-        unsubscribeUserDocument();
-        unsubscribeUserDocument = null;
+  const requestIdRef = useRef(0);
+
+  const permissionsRequestedRef = useRef(false);
+
+  const loadUserProfile = useCallback(async (currentUser) => {
+    const requestId = ++requestIdRef.current;
+
+    if (!currentUser?.uid) {
+      if (requestId !== requestIdRef.current) {
+        return;
       }
 
-      /*
-       * USER LOGGED OUT
-       */
+      setOnboardingCompleted(null);
+      setProfileError(null);
+      setCheckingAuth(false);
+
+      return;
+    }
+
+    setCheckingAuth(true);
+    setProfileError(null);
+    setOnboardingCompleted(null);
+
+    try {
+      const profile = await getUserProfile(currentUser.uid);
+
+      if (
+        requestId !== requestIdRef.current ||
+        auth.currentUser?.uid !== currentUser.uid
+      ) {
+        return;
+      }
+
+      if (!profile) {
+        setOnboardingCompleted(false);
+        return;
+      }
+
+      setOnboardingCompleted(profile.onboardingCompleted === true);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      console.error("Failed to load user profile:", error);
+
+      setProfileError(error);
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setCheckingAuth(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
 
       if (!currentUser) {
-        setUser(null);
+        requestIdRef.current += 1;
+
         setOnboardingCompleted(null);
+        setProfileError(null);
         setCheckingAuth(false);
 
         return;
       }
 
-      /*
-       * USER LOGGED IN
-       */
-
-      setUser(currentUser);
-      setOnboardingCompleted(null);
-      setCheckingAuth(true);
-
-      const userRef = doc(db, "users", currentUser.uid);
-
-      unsubscribeUserDocument = onSnapshot(
-        userRef,
-
-        async (snapshot) => {
-          /*
-           * NEW USER
-           */
-
-          if (!snapshot.exists()) {
-            try {
-              await setDoc(
-                userRef,
-                {
-                  uid: currentUser.uid,
-                  email: currentUser.email || "",
-                  displayName: currentUser.displayName || "",
-                  photoURL: currentUser.photoURL || "",
-                  onboardingCompleted: false,
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                },
-                {
-                  merge: true,
-                },
-              );
-            } catch (error) {
-              console.log("Create user profile error:", error);
-            }
-
-            setOnboardingCompleted(false);
-            setCheckingAuth(false);
-
-            return;
-          }
-
-          /*
-           * EXISTING USER
-           */
-
-          const data = snapshot.data();
-
-          setOnboardingCompleted(data?.onboardingCompleted === true);
-
-          setCheckingAuth(false);
-        },
-
-        (error) => {
-          console.log("User profile listener error:", error);
-
-          setOnboardingCompleted(false);
-          setCheckingAuth(false);
-        },
-      );
+      await loadUserProfile(currentUser);
     });
 
-    return () => {
-      unsubscribeAuth();
-
-      if (unsubscribeUserDocument) {
-        unsubscribeUserDocument();
-      }
-    };
-  }, []);
-
-  /*
-   * STARTUP PERMISSIONS
-   */
+    return unsubscribe;
+  }, [loadUserProfile]);
 
   useEffect(() => {
-    if (!checkingAuth && Platform.OS !== "web") {
+    if (
+      !checkingAuth &&
+      !profileError &&
+      Platform.OS !== "web" &&
+      !permissionsRequestedRef.current
+    ) {
+      permissionsRequestedRef.current = true;
+
       requestStartupPermissions();
     }
-  }, [checkingAuth]);
+  }, [checkingAuth, profileError]);
 
-  /*
-   * GLOBAL LOADING SCREEN
-   */
+  const handleOnboardingComplete = useCallback(() => {
+    setProfileError(null);
+    setOnboardingCompleted(true);
+  }, []);
 
-  if (checkingAuth) {
-    return (
-      <SafeAreaProvider>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor={colors.background}
-          translucent={false}
-        />
+  return (
+    <SafeAreaProvider>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={colors.background}
+        translucent={false}
+      />
 
+      {checkingAuth ? (
         <View
           className="flex-1 items-center justify-center"
           style={{
@@ -155,27 +147,90 @@ export default function App() {
         >
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </SafeAreaProvider>
-    );
-  }
+      ) : profileError && user ? (
+        <View
+          className="flex-1 items-center justify-center px-6"
+          style={{
+            backgroundColor: colors.background,
+          }}
+        >
+          <View
+            className="w-full rounded-3xl p-6"
+            style={{
+              maxWidth: 520,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <View className="items-center">
+              <View
+                className="h-14 w-14 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: colors.elevated,
+                }}
+              >
+                <View
+                  className="h-3 w-3 rounded-full"
+                  style={{
+                    backgroundColor: colors.primary,
+                  }}
+                />
+              </View>
 
-  return (
-    <SafeAreaProvider>
-      
+              <Text
+                className="mt-5 text-center text-xl font-bold"
+                style={{
+                  color: colors.text,
+                }}
+              >
+                We couldn't load your account
+              </Text>
 
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={colors.background}
-        translucent={false}
-      />
+              <Text
+                className="mt-2 text-center text-sm leading-6"
+                style={{
+                  color: colors.secondary,
+                }}
+              >
+                We couldn't retrieve your account information. Please check your
+                internet connection and try again.
+              </Text>
+            </View>
 
-      <NavigationContainer>
-        {!user && <AuthLayout />}
+            <Pressable
+              className="mt-6 items-center justify-center rounded-2xl px-5 py-4"
+              style={{
+                backgroundColor: colors.primary,
+              }}
+              onPress={() => {
+                if (auth.currentUser) {
+                  loadUserProfile(auth.currentUser);
+                }
+              }}
+            >
+              <Text
+                className="font-semibold"
+                style={{
+                  color: colors.text,
+                }}
+              >
+                Try Again
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <NavigationContainer>
+          {!user && <AuthLayout />}
 
-        {user && onboardingCompleted === false && <OnboardingLayout />}
+          {user && onboardingCompleted === false && (
+            <OnboardingLayout onComplete={handleOnboardingComplete} />
+          )}
 
-        {user && onboardingCompleted === true && <MainLayout />}
-      </NavigationContainer>
+          {user && onboardingCompleted === true && <MainLayout />}
+        </NavigationContainer>
+      )}
     </SafeAreaProvider>
   );
 }

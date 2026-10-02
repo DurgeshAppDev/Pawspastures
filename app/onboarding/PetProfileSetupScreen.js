@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -9,543 +9,493 @@ import {
   Text,
   TextInput,
   View,
-  Platform,
+  useWindowDimensions,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
+
+import { Ionicons } from "@expo/vector-icons";
+
 import { getAuth } from "firebase/auth";
 
-import SelectDropdown from "../../src/components/SelectDropdown";
-import { saveUserDetails } from "../../src/services/OnboardingServices";
+import {
+  clearOnboardingDraft,
+  getOnboardingDraft,
+  updateOnboardingDraft,
+} from "../../src/storage/onboardingStorage";
+
+import {
+  completeOnboarding,
+  isFirebaseStorageEnabled,
+} from "../../src/services/OnboardingServices";
+
 import { colors } from "../../src/theme";
 
-const GENDER_OPTIONS = [
-  {
-    label: "Male",
-    value: "male",
-  },
-  {
-    label: "Female",
-    value: "female",
-  },
-  {
-    label: "Other",
-    value: "other",
-  },
-  {
-    label: "Prefer not to say",
-    value: "prefer_not_to_say",
-  },
-];
+const TYPE_OPTIONS = ["Dog", "Cat", "Bird", "Rabbit", "Other"];
 
-const AGE_OPTIONS = Array.from({ length: 63 }, (_, index) => {
-  const age = index + 18;
+const GENDER_OPTIONS = ["Male", "Female"];
 
-  return {
-    label: `${age}`,
-    value: `${age}`,
-  };
-});
+const SIZE_OPTIONS = ["Small", "Medium", "Large"];
 
-const INTEREST_OPTIONS = [
-  {
-    label: "Pet Lover",
-    value: "pet_lover",
-  },
-  {
-    label: "Photography",
-    value: "photography",
-  },
-  {
-    label: "Travel",
-    value: "travel",
-  },
-  {
-    label: "Fitness",
-    value: "fitness",
-  },
-  {
-    label: "Music",
-    value: "music",
-  },
-  {
-    label: "Food",
-    value: "food",
-  },
-  {
-    label: "Nature",
-    value: "nature",
-  },
-  {
-    label: "Gaming",
-    value: "gaming",
-  },
-  {
-    label: "Movies",
-    value: "movies",
-  },
-  {
-    label: "Reading",
-    value: "reading",
-  },
-  {
-    label: "Art",
-    value: "art",
-  },
-  {
-    label: "Cooking",
-    value: "cooking",
-  },
-];
+function DropdownField({ label, value, options, placeholder, onChange }) {
+  const [open, setOpen] = useState(false);
 
-export default function AboutYouScreen({ navigation }) {
-  const auth = getAuth();
+  return (
+    <View className="mb-4">
+      <Text
+        className="mb-2 text-sm font-semibold"
+        style={{ color: colors.text }}
+      >
+        {label}
+      </Text>
 
-  const [name, setName] = useState("");
-  const [age, setAge] = useState("");
+      <Pressable
+        className="flex-row items-center justify-between rounded-2xl px-4 py-4"
+        style={{
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: open ? colors.primary : colors.border,
+        }}
+        onPress={() => setOpen((current) => !current)}
+      >
+        <Text
+          className="flex-1"
+          style={{
+            color: value ? colors.text : colors.placeholder,
+          }}
+        >
+          {value || placeholder}
+        </Text>
+
+        <Ionicons
+          name={open ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={colors.secondary}
+        />
+      </Pressable>
+
+      {open && (
+        <View
+          className="mt-2 overflow-hidden rounded-2xl"
+          style={{
+            backgroundColor: colors.elevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          {options.map((option) => (
+            <Pressable
+              key={option}
+              className="px-4 py-3"
+              style={{
+                backgroundColor:
+                  value === option ? colors.surface : "transparent",
+              }}
+              onPress={() => {
+                onChange(option);
+                setOpen(false);
+              }}
+            >
+              <Text
+                style={{
+                  color: value === option ? colors.primary : colors.text,
+                }}
+              >
+                {option}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+export default function PetProfileSetupScreen({ onComplete }) {
+  const { width } = useWindowDimensions();
+
+  const isWeb = width >= 768;
+
+  const contentWidth = useMemo(() => {
+    if (isWeb) {
+      return Math.min(width - 48, 620);
+    }
+
+    return width - 32;
+  }, [width, isWeb]);
+
+  const [petName, setPetName] = useState("");
+  const [type, setType] = useState("");
   const [gender, setGender] = useState("");
-  const [location, setLocation] = useState("");
-  const [bio, setBio] = useState("");
-  const [profileImage, setProfileImage] = useState(null);
-  const [interests, setInterests] = useState([]);
+  const [age, setAge] = useState("");
+  const [size, setSize] = useState("");
+  const [imageUri, setImageUri] = useState(null);
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const pickProfileImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const loadDraft = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-    if (!permission.granted) {
-      Alert.alert(
-        "Permission required",
-        "Please allow photo library access to select your profile photo.",
-      );
+      const user = getAuth().currentUser;
 
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-
-    if (!result.canceled && result.assets?.length > 0) {
-      setProfileImage(result.assets[0].uri);
-    }
-  };
-
-  const toggleInterest = (interest) => {
-    setInterests((current) => {
-      const exists = current.includes(interest);
-
-      if (exists) {
-        return current.filter((item) => item !== interest);
+      if (!user?.uid) {
+        throw new Error("Your session has expired. Please log in again.");
       }
 
-      return [...current, interest];
-    });
+      const draft = await getOnboardingDraft(user.uid);
+
+      if (!draft.pet) {
+        return;
+      }
+
+      setPetName(draft.pet.petName || "");
+      setType(draft.pet.type || "");
+      setGender(draft.pet.gender || "");
+      setAge(
+        draft.pet.age !== undefined && draft.pet.age !== null
+          ? String(draft.pet.age)
+          : "",
+      );
+      setSize(draft.pet.size || "");
+      setImageUri(draft.pet.imageUri || null);
+    } catch (err) {
+      console.error("Failed to load pet onboarding draft:", err);
+
+      setError(err?.message || "Unable to load your saved pet information.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDraft();
+  }, [loadDraft]);
+
+  const selectPetImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        setError(
+          "Photo library permission is required to select a pet picture.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error("Pet image selection failed:", err);
+
+      setError("Unable to select the pet picture.");
+    }
   };
 
-  const validateForm = () => {
-    if (!name.trim()) {
-      Alert.alert("Required", "Please enter your name.");
-      return false;
+  const validate = () => {
+    const trimmedName = petName.trim();
+    const numericAge = Number(age);
+
+    if (!trimmedName) {
+      return "Please enter your pet's name.";
     }
 
-    if (!age) {
-      Alert.alert("Required", "Please select your age.");
-      return false;
+    if (!type) {
+      return "Please select your pet type.";
     }
 
     if (!gender) {
-      Alert.alert("Required", "Please select your gender.");
-      return false;
+      return "Please select your pet's gender.";
     }
 
-    if (!location.trim()) {
-      Alert.alert("Required", "Please enter your location.");
-      return false;
+    if (!Number.isInteger(numericAge) || numericAge < 0 || numericAge > 100) {
+      return "Please enter a valid pet age.";
     }
 
-    if (!bio.trim()) {
-      Alert.alert("Required", "Please write a short bio.");
-      return false;
+    if (!size) {
+      return "Please select your pet's size.";
     }
 
-    if (interests.length === 0) {
-      Alert.alert("Required", "Please select at least one interest.");
-      return false;
-    }
-
-    return true;
+    return null;
   };
 
-  const handleFinish = async () => {
-    if (!validateForm()) {
+  const handleComplete = async () => {
+    const validationError = validate();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    const userId = auth.currentUser?.uid;
+    const user = getAuth().currentUser;
 
-    if (!userId) {
-      Alert.alert("Session expired", "Please login again.");
+    if (!user?.uid) {
+      setError("Your session has expired. Please log in again.");
+      return;
+    }
+
+    if (imageUri && !isFirebaseStorageEnabled()) {
+      setError(
+        "Firebase Storage is not enabled yet. Please remove the selected pet image or enable Firebase Storage before completing your profile.",
+      );
       return;
     }
 
     try {
       setSaving(true);
+      setError("");
 
-      await saveUserDetails(userId, {
-        name: name.trim(),
-        age: Number(age),
-        gender,
-        location: location.trim(),
-        bio: bio.trim(),
-        interests,
-        profileImage: profileImage || null,
+      const draft = await updateOnboardingDraft(user.uid, {
+        pet: {
+          petName: petName.trim(),
+          type,
+          gender,
+          age: Number(age),
+          size,
+          imageUri: imageUri || null,
+        },
       });
 
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "Main",
-          },
-        ],
-      });
-    } catch (error) {
-      console.error("ABOUT YOU SAVE ERROR:", error);
+      if (!draft.user) {
+        throw new Error(
+          "Your About You information is missing. Please go back and complete it.",
+        );
+      }
 
-      Alert.alert(
-        "Unable to save",
-        error?.message ||
-          "Your profile could not be completed. Please try again.",
+      await completeOnboarding(user.uid, {
+        user: draft.user,
+        pet: draft.pet,
+      });
+
+      try {
+        await clearOnboardingDraft(user.uid);
+      } catch (clearError) {
+        console.warn(
+          "Onboarding completed, but local draft could not be cleared:",
+          clearError,
+        );
+      }
+
+      onComplete?.();
+    } catch (err) {
+      console.error("Onboarding completion failed:", err);
+
+      setError(
+        err?.message ||
+          "We couldn't complete your profile. Your information has been kept locally. Please try again.",
       );
     } finally {
       setSaving(false);
     }
   };
 
-  const isWeb = Platform.OS === "web";
+  if (loading) {
+    return (
+      <View
+        className="flex-1 items-center justify-center"
+        style={{
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View
+    <ScrollView
       className="flex-1"
       style={{
         backgroundColor: colors.background,
       }}
+      contentContainerStyle={{
+        alignItems: "center",
+        paddingVertical: isWeb ? 48 : 28,
+        paddingHorizontal: 16,
+      }}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{
-          paddingHorizontal: isWeb ? 32 : 20,
-          paddingTop: isWeb ? 40 : 24,
-          paddingBottom: 50,
-          alignItems: isWeb ? "center" : "stretch",
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View
-          style={{
-            width: "100%",
-            maxWidth: isWeb ? 620 : undefined,
-          }}
+      <View style={{ width: contentWidth }}>
+        <Text className="text-3xl font-bold" style={{ color: colors.text }}>
+          Meet your pet
+        </Text>
+
+        <Text
+          className="mt-2 text-base leading-6"
+          style={{ color: colors.secondary }}
         >
-          {/* HEADER */}
+          Add your pet's details to complete your Paws & Pastures profile.
+        </Text>
 
-          <Text
-            className="text-3xl font-bold"
+        {error ? (
+          <View
+            className="mt-5 rounded-2xl px-4 py-3"
             style={{
-              color: colors["text-primary"],
+              backgroundColor: colors.elevated,
+              borderWidth: 1,
+              borderColor: colors.primary,
             }}
           >
-            About you
-          </Text>
-
-          <Text
-            className="mt-2 text-base"
-            style={{
-              color: colors["text-secondary"],
-            }}
-          >
-            Tell the community a little about yourself.
-          </Text>
-
-          {/* PROFILE PHOTO */}
-
-          <View className="mt-7 items-center">
-            <Pressable onPress={pickProfileImage} className="relative">
-              <View
-                className="h-[112px] w-[112px] items-center justify-center rounded-full border-2"
-                style={{
-                  borderColor: colors.primary,
-                  backgroundColor: colors.surface,
-                }}
-              >
-                {profileImage ? (
-                  <Image
-                    source={{
-                      uri: profileImage,
-                    }}
-                    className="h-[104px] w-[104px] rounded-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Text
-                    className="text-4xl font-light"
-                    style={{
-                      color: colors.primary,
-                    }}
-                  >
-                    +
-                  </Text>
-                )}
-              </View>
-
-              <View
-                className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor: colors.primary,
-                }}
-              >
-                <Text
-                  className="text-lg font-bold"
-                  style={{
-                    color: colors.white,
-                  }}
-                >
-                  +
-                </Text>
-              </View>
-            </Pressable>
-
-            <Text
-              className="mt-3 text-sm font-medium"
-              style={{
-                color: colors["text-secondary"],
-              }}
-            >
-              {profileImage ? "Change profile photo" : "Add profile photo"}
+            <Text className="leading-5" style={{ color: colors.accent }}>
+              {error}
             </Text>
           </View>
+        ) : null}
 
-          {/* NAME */}
-
-          <View className="mt-7">
-            <Text
-              className="mb-2 text-sm font-medium"
-              style={{
-                color: colors["text-secondary"],
-              }}
-            >
-              Your name
-            </Text>
-
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
-              placeholderTextColor={colors["text-placeholder"]}
-              className="h-[52px] rounded-xl px-4 text-base"
-              style={{
-                color: colors["text-primary"],
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            />
-          </View>
-
-          {/* AGE */}
-
-          <View className="mt-4">
-            <SelectDropdown
-              label="Age"
-              placeholder="Select your age"
-              options={AGE_OPTIONS}
-              value={age}
-              onSelect={setAge}
-            />
-          </View>
-
-          {/* GENDER */}
-
-          <SelectDropdown
-            label="Gender"
-            placeholder="Select your gender"
-            options={GENDER_OPTIONS}
-            value={gender}
-            onSelect={setGender}
-          />
-
-          {/* LOCATION */}
-
-          <View className="mt-0">
-            <Text
-              className="mb-2 text-sm font-medium"
-              style={{
-                color: colors["text-secondary"],
-              }}
-            >
-              Location
-            </Text>
-
-            <TextInput
-              value={location}
-              onChangeText={setLocation}
-              placeholder="City or area"
-              placeholderTextColor={colors["text-placeholder"]}
-              className="h-[52px] rounded-xl px-4 text-base"
-              style={{
-                color: colors["text-primary"],
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            />
-
-            <Text
-              className="mt-2 text-xs"
-              style={{
-                color: colors["text-muted"],
-              }}
-            >
-              Example: Ludhiana, Punjab
-            </Text>
-          </View>
-
-          {/* INTERESTS */}
-
-          <View className="mt-6">
-            <View className="flex-row items-center justify-between">
-              <Text
-                className="text-sm font-medium"
-                style={{
-                  color: colors["text-secondary"],
-                }}
-              >
-                Interests
-              </Text>
-
-              <Text
-                className="text-xs"
-                style={{
-                  color: colors["text-muted"],
-                }}
-              >
-                {interests.length} selected
-              </Text>
-            </View>
-
-            <Text
-              className="mt-1 text-xs"
-              style={{
-                color: colors["text-muted"],
-              }}
-            >
-              Select things you enjoy.
-            </Text>
-
-            <View className="mt-3 flex-row flex-wrap">
-              {INTEREST_OPTIONS.map((interest) => {
-                const selected = interests.includes(interest.value);
-
-                return (
-                  <Pressable
-                    key={interest.value}
-                    onPress={() => toggleInterest(interest.value)}
-                    className="mb-2 mr-2 rounded-full border px-3 py-2"
-                    style={{
-                      backgroundColor: selected
-                        ? colors.primary
-                        : colors.surface,
-                      borderColor: selected ? colors.primary : colors.border,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: selected ? colors.white : colors["text-primary"],
-                      }}
-                    >
-                      {interest.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* BIO */}
-
-          <View className="mt-5">
-            <View className="flex-row items-center justify-between">
-              <Text
-                className="text-sm font-medium"
-                style={{
-                  color: colors["text-secondary"],
-                }}
-              >
-                Bio
-              </Text>
-
-              <Text
-                className="text-xs"
-                style={{
-                  color: colors["text-muted"],
-                }}
-              >
-                {bio.length}/160
-              </Text>
-            </View>
-
-            <TextInput
-              value={bio}
-              onChangeText={(text) => {
-                if (text.length <= 160) {
-                  setBio(text);
-                }
-              }}
-              placeholder="Tell people a little about yourself..."
-              placeholderTextColor={colors["text-placeholder"]}
-              multiline
-              textAlignVertical="top"
-              className="mt-2 min-h-[120px] rounded-xl px-4 py-3 text-base"
-              style={{
-                color: colors["text-primary"],
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            />
-          </View>
-
-          {/* COMPLETE */}
-
+        <View className="mt-7 items-center">
           <Pressable
-            disabled={saving}
-            onPress={handleFinish}
-            className="mt-7 h-[52px] items-center justify-center rounded-xl"
+            className="h-28 w-28 items-center justify-center overflow-hidden rounded-full"
             style={{
-              backgroundColor: colors.primary,
-              opacity: saving ? 0.6 : 1,
+              backgroundColor: colors.surface,
+              borderWidth: 2,
+              borderColor: colors.border,
             }}
+            onPress={selectPetImage}
           >
-            {saving ? (
-              <ActivityIndicator color={colors.white} />
+            {imageUri ? (
+              <Image
+                source={{ uri: imageUri }}
+                className="h-full w-full"
+                resizeMode="cover"
+              />
             ) : (
-              <Text
-                className="text-base font-bold"
-                style={{
-                  color: colors.white,
-                }}
-              >
-                Complete Profile
-              </Text>
+              <Ionicons name="paw-outline" size={38} color={colors.primary} />
             )}
           </Pressable>
+
+          <Pressable className="mt-3" onPress={selectPetImage}>
+            <Text className="font-semibold" style={{ color: colors.primary }}>
+              {imageUri ? "Change pet picture" : "Add pet picture"}
+            </Text>
+          </Pressable>
         </View>
-      </ScrollView>
-    </View>
+
+        <View className="mt-7">
+          <Text
+            className="mb-2 text-sm font-semibold"
+            style={{ color: colors.text }}
+          >
+            Pet name
+          </Text>
+
+          <TextInput
+            value={petName}
+            onChangeText={setPetName}
+            placeholder="Enter your pet's name"
+            placeholderTextColor={colors.placeholder}
+            className="rounded-2xl px-4 py-4"
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              color: colors.text,
+            }}
+            maxLength={60}
+          />
+        </View>
+
+        <View className="mt-4">
+          <DropdownField
+            label="Pet type"
+            value={type}
+            options={TYPE_OPTIONS}
+            placeholder="Select pet type"
+            onChange={setType}
+          />
+        </View>
+
+        <View className="mt-0">
+          <DropdownField
+            label="Gender"
+            value={gender}
+            options={GENDER_OPTIONS}
+            placeholder="Select gender"
+            onChange={setGender}
+          />
+        </View>
+
+        <View className="mt-0">
+          <Text
+            className="mb-2 text-sm font-semibold"
+            style={{ color: colors.text }}
+          >
+            Age
+          </Text>
+
+          <TextInput
+            value={age}
+            onChangeText={setAge}
+            placeholder="Enter your pet's age"
+            placeholderTextColor={colors.placeholder}
+            keyboardType="number-pad"
+            className="rounded-2xl px-4 py-4"
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              color: colors.text,
+            }}
+            maxLength={3}
+          />
+        </View>
+
+        <View className="mt-4">
+          <DropdownField
+            label="Size"
+            value={size}
+            options={SIZE_OPTIONS}
+            placeholder="Select size"
+            onChange={setSize}
+          />
+        </View>
+
+        <Pressable
+          className="mt-4 flex-row items-center rounded-2xl px-4 py-4"
+          style={{
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+          onPress={selectPetImage}
+        >
+          <Ionicons name="image-outline" size={22} color={colors.primary} />
+
+          <Text className="ml-3 flex-1" style={{ color: colors.secondary }}>
+            {imageUri ? "Pet picture selected" : "Add a pet picture"}
+          </Text>
+
+          <Ionicons name="chevron-forward" size={18} color={colors.secondary} />
+        </Pressable>
+
+        <Pressable
+          className="mt-8 items-center justify-center rounded-2xl px-5 py-4"
+          style={{
+            backgroundColor: saving ? colors.elevated : colors.primary,
+          }}
+          disabled={saving}
+          onPress={handleComplete}
+        >
+          {saving ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Text className="font-bold" style={{ color: colors.text }}>
+              Complete Profile
+            </Text>
+          )}
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }

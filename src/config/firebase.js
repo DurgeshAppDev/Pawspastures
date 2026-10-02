@@ -10,6 +10,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { getFirestore } from "firebase/firestore";
 
+import { getStorage } from "firebase/storage";
+
 import { Platform } from "react-native";
 
 // ============================================================
@@ -40,12 +42,6 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 // FIREBASE AUTH
 // ============================================================
 
-// Native:
-// Use AsyncStorage persistence.
-//
-// Web:
-// Use Firebase's normal browser Auth implementation.
-
 export const auth =
   Platform.OS === "web"
     ? getAuth(app)
@@ -58,5 +54,11 @@ export const auth =
 // ============================================================
 
 export const db = getFirestore(app);
+
+// ============================================================
+// FIREBASE STORAGE
+// ============================================================
+
+export const storage = getStorage(app);
 
 export default app;
