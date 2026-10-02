@@ -72,7 +72,8 @@ export default function RegisterScreen({ navigation }) {
       await createUserProfile(
         user.uid,
         trimmedName,
-        trimmedEmail
+        trimmedEmail,
+        "password"
       );
 
       Alert.alert(

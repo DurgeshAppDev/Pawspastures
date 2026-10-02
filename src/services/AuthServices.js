@@ -24,30 +24,25 @@ import { Platform } from "react-native";
 import { auth } from "../config/firebase";
 
 // GOOGLE CONFIGURATION
+
 if (Platform.OS !== "web") {
   GoogleSignin.configure({
-    webClientId:
-      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
 
-    iosClientId:
-      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
 
     offlineAccess: false,
   });
 }
 
-// REGISTER USER
-export const registerUser = async (
-  name,
-  email,
-  password
-) => {
-  const userCredential =
-    await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+// EMAIL / PASSWORD REGISTER
+
+export const registerUser = async (name, email, password) => {
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
 
   const user = userCredential.user;
 
@@ -58,33 +53,30 @@ export const registerUser = async (
   return user;
 };
 
-// LOGIN USER
-export const loginUser = async (
-  email,
-  password
-) => {
-  const userCredential =
-    await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+// EMAIL / PASSWORD LOGIN
+
+export const loginUser = async (email, password) => {
+  const userCredential = await signInWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
 
   return userCredential.user;
 };
 
 // GOOGLE LOGIN
+
 export const loginWithGoogle = async () => {
   try {
     if (Platform.OS === "web") {
-      const provider =
-        new GoogleAuthProvider();
+      const provider = new GoogleAuthProvider();
 
-      const userCredential =
-        await signInWithPopup(
-          auth,
-          provider
-        );
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
+
+      const userCredential = await signInWithPopup(auth, provider);
 
       return userCredential.user;
     }
@@ -95,67 +87,46 @@ export const loginWithGoogle = async () => {
       });
     }
 
-    const response =
-      await GoogleSignin.signIn();
+    const response = await GoogleSignin.signIn();
 
     if (!isSuccessResponse(response)) {
       throw {
         code: "SIGN_IN_CANCELLED",
-        message:
-          "Google sign-in was cancelled.",
+        message: "Google sign-in was cancelled.",
       };
     }
 
-    const idToken =
-      response.data?.idToken;
+    const idToken = response.data?.idToken;
 
     if (!idToken) {
-      throw new Error(
-        "Google did not return an ID token."
-      );
+      throw {
+        code: "GOOGLE_NO_ID_TOKEN",
+        message: "Google did not return an ID token.",
+      };
     }
 
-    const googleCredential =
-      GoogleAuthProvider.credential(
-        idToken
-      );
+    const credential = GoogleAuthProvider.credential(idToken);
 
-    const userCredential =
-      await signInWithCredential(
-        auth,
-        googleCredential
-      );
+    const userCredential = await signInWithCredential(auth, credential);
 
     return userCredential.user;
-
   } catch (error) {
     if (isErrorWithCode(error)) {
-      if (
-        error.code ===
-        statusCodes.SIGN_IN_CANCELLED
-      ) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         throw {
           code: "SIGN_IN_CANCELLED",
-          message:
-            "Google sign-in was cancelled.",
+          message: "Google sign-in was cancelled.",
         };
       }
 
-      if (
-        error.code ===
-        statusCodes.IN_PROGRESS
-      ) {
+      if (error.code === statusCodes.IN_PROGRESS) {
         throw {
           code: "GOOGLE_SIGN_IN_IN_PROGRESS",
-          message:
-            "Google sign-in is already in progress.",
+          message: "Google sign-in is already in progress.",
         };
       }
 
-      if (
-        error.code ===
-        statusCodes.PLAY_SERVICES_NOT_AVAILABLE
-      ) {
+      if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         throw {
           code: "PLAY_SERVICES_NOT_AVAILABLE",
           message:
@@ -169,67 +140,54 @@ export const loginWithGoogle = async () => {
 };
 
 // APPLE LOGIN
+
 export const loginWithApple = async () => {
   try {
-    const isAvailable =
-      await AppleAuthentication.isAvailableAsync();
-
-    if (!isAvailable) {
+    if (Platform.OS !== "ios") {
       throw {
-        code: "apple-not-available",
-        message:
-          "Apple Sign-In is not available on this device.",
+        code: "APPLE_IOS_ONLY",
+        message: "Apple Sign-In is available on iOS.",
       };
     }
 
-    const credential =
-      await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication
-            .AppleAuthenticationScope
-            .FULL_NAME,
+    const available = await AppleAuthentication.isAvailableAsync();
 
-          AppleAuthentication
-            .AppleAuthenticationScope
-            .EMAIL,
-        ],
-      });
+    if (!available) {
+      throw {
+        code: "APPLE_NOT_AVAILABLE",
+        message: "Apple Sign-In is not available on this device.",
+      };
+    }
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
 
     if (!credential.identityToken) {
       throw {
-        code: "apple-no-token",
-        message:
-          "Apple did not return an identity token.",
+        code: "APPLE_NO_TOKEN",
+        message: "Apple did not return an identity token.",
       };
     }
 
-    const provider =
-      new OAuthProvider("apple.com");
+    const provider = new OAuthProvider("apple.com");
 
-    const appleCredential =
-      provider.credential({
-        idToken:
-          credential.identityToken,
-      });
+    const appleCredential = provider.credential({
+      idToken: credential.identityToken,
+    });
 
-    const userCredential =
-      await signInWithCredential(
-        auth,
-        appleCredential
-      );
+    const userCredential = await signInWithCredential(auth, appleCredential);
 
     return userCredential.user;
-
   } catch (error) {
-    if (
-      error?.code ===
-      "ERR_REQUEST_CANCELED"
-    ) {
+    if (error?.code === "ERR_REQUEST_CANCELED") {
       throw {
-        code:
-          "auth/cancelled-popup-request",
-        message:
-          "Apple sign-in cancelled.",
+        code: "SIGN_IN_CANCELLED",
+        message: "Apple sign-in was cancelled.",
       };
     }
 
@@ -237,22 +195,17 @@ export const loginWithApple = async () => {
   }
 };
 
-// PASSWORD RESET
-export const resetPassword = async (
-  email
-) => {
-  await sendPasswordResetEmail(
-    auth,
-    email
-  );
+//reset pass 
+export const resetPassword = async (email) => {
+  if (!email?.trim()) {
+    throw new Error("Email address is required.");
+  }
+
+  await sendPasswordResetEmail(auth, email.trim().toLowerCase());
 };
 
 // LOGOUT
-// LOGOUT
-export const logoutUser = async () => {
-  if (!auth.currentUser) {
-    return;
-  }
 
+export const logoutUser = async () => {
   await signOut(auth);
 };
