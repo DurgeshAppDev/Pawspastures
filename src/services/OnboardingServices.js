@@ -1,4 +1,9 @@
-import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
 
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
@@ -162,6 +167,8 @@ export const completeOnboarding = async (userId, onboardingData) => {
   const userData = validateUserData(onboardingData.user);
   const petData = validatePetData(onboardingData.pet);
 
+  // USER PROFILE IMAGE
+
   const profileImageUrl = userData.profileImageUri
     ? await uploadImage(
         userId,
@@ -170,19 +177,29 @@ export const completeOnboarding = async (userId, onboardingData) => {
       )
     : null;
 
+  // CREATE PET DOCUMENT ID BEFORE UPLOADING PET IMAGE
+
+  const petsCollectionRef = collection(db, "users", userId, "pets");
+
+  const petRef = doc(petsCollectionRef);
+
+  // PET IMAGE
+
   const petImageUrl = petData.imageUri
     ? await uploadImage(
         userId,
         petData.imageUri,
-        `users/${userId}/pets/pet-image.jpg`,
+        `users/${userId}/pets/${petRef.id}/profile.jpg`,
       )
     : null;
+
+  // FIRESTORE BATCH
 
   const batch = writeBatch(db);
 
   const userRef = doc(db, "users", userId);
 
-  const petRef = doc(db, "users", userId, "pets", "petdetails");
+  // USER PROFILE
 
   batch.set(
     userRef,
@@ -210,29 +227,27 @@ export const completeOnboarding = async (userId, onboardingData) => {
     },
   );
 
-  batch.set(
-    petRef,
-    {
-      petName: petData.petName,
-      type: petData.type,
-      gender: petData.gender,
-      age: petData.age,
-      size: petData.size,
+  // FIRST PET
 
-      imageUrl: petImageUrl,
+  batch.set(petRef, {
+    petId: petRef.id,
+    petName: petData.petName,
+    type: petData.type,
+    gender: petData.gender,
+    age: petData.age,
+    size: petData.size,
+    imageUrl: petImageUrl,
 
-      updatedAt: serverTimestamp(),
-    },
-    {
-      merge: true,
-    },
-  );
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 
   await batch.commit();
 
   return {
     success: true,
     userId,
+    petId: petRef.id,
     profileImageUrl,
     petImageUrl,
   };
