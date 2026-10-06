@@ -22,18 +22,32 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { Platform } from "react-native";
 
 import { auth } from "../config/firebase";
+import { createUserProfile } from "./userServices";
 
 // GOOGLE CONFIGURATION
 
 if (Platform.OS !== "web") {
   GoogleSignin.configure({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-
     offlineAccess: false,
   });
 }
+
+// ENSURE FIRESTORE USER PROFILE
+
+const ensureUserProfile = async (user, authProvider) => {
+  if (!user?.uid) {
+    throw new Error("Authenticated user is missing a UID.");
+  }
+
+  return await createUserProfile(
+    user.uid,
+    user.displayName || "",
+    user.email || "",
+    authProvider,
+  );
+};
 
 // EMAIL / PASSWORD REGISTER
 
@@ -49,6 +63,8 @@ export const registerUser = async (name, email, password) => {
   await updateProfile(user, {
     displayName: name,
   });
+
+  await ensureUserProfile(user, "password");
 
   return user;
 };
@@ -70,15 +86,34 @@ export const loginUser = async (email, password) => {
 export const loginWithGoogle = async () => {
   try {
     if (Platform.OS === "web") {
+      console.log("GOOGLE 1: Starting");
+
       const provider = new GoogleAuthProvider();
 
       provider.setCustomParameters({
         prompt: "select_account",
       });
 
-      const userCredential = await signInWithPopup(auth, provider);
+      console.log("GOOGLE 2: Opening popup");
 
-      return userCredential.user;
+      const userCredential = await signInWithPopup(
+        auth,
+        provider,
+      );
+
+      const user = userCredential.user;
+
+      console.log(
+        "GOOGLE 3: Firebase login successful",
+        user.uid,
+        user.email,
+      );
+
+      await ensureUserProfile(user, "google.com");
+
+      console.log("GOOGLE 4: Firestore profile ensured");
+
+      return user;
     }
 
     if (Platform.OS === "android") {
@@ -107,9 +142,18 @@ export const loginWithGoogle = async () => {
 
     const credential = GoogleAuthProvider.credential(idToken);
 
-    const userCredential = await signInWithCredential(auth, credential);
+    const userCredential = await signInWithCredential(
+      auth,
+      credential,
+    );
 
-    return userCredential.user;
+    const user = userCredential.user;
+
+    await ensureUserProfile(user, "google.com");
+
+    console.log("GOOGLE 4: Firestore profile ensured");
+
+    return user;
   } catch (error) {
     if (isErrorWithCode(error)) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
@@ -150,27 +194,30 @@ export const loginWithApple = async () => {
       };
     }
 
-    const available = await AppleAuthentication.isAvailableAsync();
+    const available =
+      await AppleAuthentication.isAvailableAsync();
 
     if (!available) {
       throw {
         code: "APPLE_NOT_AVAILABLE",
-        message: "Apple Sign-In is not available on this device.",
+        message:
+          "Apple Sign-In is not available on this device.",
       };
     }
 
-    const credential = await AppleAuthentication.signInAsync({
-      requestedScopes: [
-        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-
-        AppleAuthentication.AppleAuthenticationScope.EMAIL,
-      ],
-    });
+    const credential =
+      await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
 
     if (!credential.identityToken) {
       throw {
         code: "APPLE_NO_TOKEN",
-        message: "Apple did not return an identity token.",
+        message:
+          "Apple did not return an identity token.",
       };
     }
 
@@ -180,9 +227,18 @@ export const loginWithApple = async () => {
       idToken: credential.identityToken,
     });
 
-    const userCredential = await signInWithCredential(auth, appleCredential);
+    const userCredential = await signInWithCredential(
+      auth,
+      appleCredential,
+    );
 
-    return userCredential.user;
+    const user = userCredential.user;
+
+    await ensureUserProfile(user, "apple.com");
+
+    console.log("APPLE: Firestore profile ensured");
+
+    return user;
   } catch (error) {
     if (error?.code === "ERR_REQUEST_CANCELED") {
       throw {
@@ -195,13 +251,17 @@ export const loginWithApple = async () => {
   }
 };
 
-//reset pass 
+// RESET PASSWORD
+
 export const resetPassword = async (email) => {
   if (!email?.trim()) {
     throw new Error("Email address is required.");
   }
 
-  await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+  await sendPasswordResetEmail(
+    auth,
+    email.trim().toLowerCase(),
+  );
 };
 
 // LOGOUT

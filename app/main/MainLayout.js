@@ -22,6 +22,10 @@ import MediaEditorScreen from "./MediaEditorScreen";
 import NewPostScreen from "./NewPostScreen";
 import SettingsScreen from "./SettingsScreen";
 
+import EditProfileScreen from "../profile/EditProfileScreen";
+import AddPetScreen from "../profile/AddPetScreen";
+import EditPetScreen from "../profile/EditPetScreen";
+
 import CommunityChatScreen from "../../src/components/communities/CommunityChatScreen";
 import RecommendedGroupsScreen from "../../src/components/communities/RecommendedGroupsScreen";
 import UpcomingEventsScreen from "../../src/components/communities/UpcomingEventsScreen";
@@ -256,6 +260,12 @@ export default function MainLayout() {
       <Stack.Screen name="CreateCommunity" component={CreateCommunityScreen} />
 
       <Stack.Screen name="CommunityInfo" component={CommunityInfoScreen} />
+
+      <Stack.Screen name="ProfileEdit" component={EditProfileScreen} />
+
+      <Stack.Screen name="AddPet" component={AddPetScreen} />
+
+      <Stack.Screen name="EditPet" component={EditPetScreen} />
     </Stack.Navigator>
   );
 }

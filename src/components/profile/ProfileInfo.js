@@ -25,7 +25,7 @@ export default function ProfileInfo() {
 
   const { profile, pets } = useProfile();
 
-  const profileImage = profile?.profileImage || profile?.photoURL || null;
+  const profileImage = profile?.profileImageUrl || null;
 
   const name = profile?.name || "Your Name";
 
@@ -63,7 +63,9 @@ export default function ProfileInfo() {
           >
             {profileImage ? (
               <Image
-                source={{ uri: profileImage }}
+                source={{
+                  uri: profileImage,
+                }}
                 className="rounded-full"
                 style={{
                   width: isDesktop ? 98 : 86,
@@ -92,7 +94,7 @@ export default function ProfileInfo() {
           {name}
         </Text>
 
-        {(age || location) && (
+        {(age !== null || location) && (
           <Text
             style={{
               marginTop: 4,
@@ -100,8 +102,11 @@ export default function ProfileInfo() {
               fontSize: isDesktop ? 14 : 13,
             }}
           >
-            {[age ? age : null, location ? location : null]
-              .filter(Boolean)
+            {[age, location]
+              .filter(
+                (value) =>
+                  value !== null && value !== undefined && value !== "",
+              )
               .join(" • ")}
           </Text>
         )}
@@ -115,9 +120,9 @@ export default function ProfileInfo() {
               maxWidth: isDesktop ? 700 : 500,
             }}
           >
-            {interests.slice(0, 5).map((interest) => (
+            {interests.slice(0, 5).map((interest, index) => (
               <View
-                key={interest}
+                key={`${String(interest)}-${index}`}
                 className="flex-row items-center rounded-full border bg-surface px-3 py-1.5"
                 style={{
                   borderColor: colors.border,
@@ -132,7 +137,7 @@ export default function ProfileInfo() {
                     fontSize: 12,
                   }}
                 >
-                  {interest}
+                  {String(interest)}
                 </Text>
               </View>
             ))}
@@ -227,55 +232,73 @@ export default function ProfileInfo() {
               paddingRight: 8,
             }}
           >
-            {pets.map((pet) => (
-              <View
-                key={pet.id}
-                className="items-center"
-                style={{
-                  marginRight: isDesktop ? 30 : 24,
-                }}
-              >
-                <View className="relative">
-                  <View
-                    className="items-center justify-center rounded-full border-2"
-                    style={{
-                      width: isDesktop ? 64 : 58,
-                      height: isDesktop ? 64 : 58,
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                    }}
-                  >
-                    {pet.imageUri ? (
-                      <Image
-                        source={{ uri: pet.imageUri }}
-                        className="rounded-full"
-                        style={{
-                          width: isDesktop ? 58 : 52,
-                          height: isDesktop ? 58 : 52,
-                        }}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Ionicons
-                        name="paw"
-                        size={24}
-                        color={colors["icon-muted"]}
-                      />
-                    )}
-                  </View>
-                </View>
+            {pets.map((pet) => {
+              const petId = pet.id || pet.petId;
 
-                <Text
-                  className="mt-2"
+              return (
+                <View
+                  key={petId}
+                  className="items-center"
                   style={{
-                    color: colors["text-secondary"],
-                    fontSize: 11,
+                    marginRight: isDesktop ? 30 : 24,
                   }}
                 >
-                  {pet.petName}
-                </Text>
-              </View>
-            ))}
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate("EditPet", {
+                        petId,
+                      })
+                    }
+                    className="relative"
+                  >
+                    <View
+                      className="items-center justify-center rounded-full border-2 border-border bg-surface"
+                      style={{
+                        width: isDesktop ? 64 : 58,
+                        height: isDesktop ? 64 : 58,
+                      }}
+                    >
+                      {pet.imageUrl ? (
+                        <Image
+                          source={{
+                            uri: pet.imageUrl,
+                          }}
+                          className="rounded-full"
+                          style={{
+                            width: isDesktop ? 58 : 52,
+                            height: isDesktop ? 58 : 52,
+                          }}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Ionicons
+                          name="paw"
+                          size={24}
+                          color={colors["icon-muted"]}
+                        />
+                      )}
+                    </View>
+
+                    <View className="absolute bottom-0 right-0 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary">
+                      <Ionicons
+                        name="pencil"
+                        size={11}
+                        color={colors["text-primary"]}
+                      />
+                    </View>
+                  </Pressable>
+
+                  <Text
+                    className="mt-2 text-xs"
+                    style={{
+                      color: colors["text-secondary"],
+                    }}
+                  >
+                    {pet.petName || "Pet"}
+                  </Text>
+                </View>
+              );
+            })}
           </ScrollView>
         ) : (
           <View className="items-center rounded-2xl bg-surface px-6 py-8">

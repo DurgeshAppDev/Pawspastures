@@ -55,5 +55,14 @@ export const createUserProfile = async (
 
   await setDoc(userRef, profile);
 
-  return profile;
+  const savedSnapshot = await getDoc(userRef);
+
+  if (!savedSnapshot.exists()) {
+    throw new Error("User profile could not be created.");
+  }
+
+  return {
+    id: savedSnapshot.id,
+    ...savedSnapshot.data(),
+  };
 };

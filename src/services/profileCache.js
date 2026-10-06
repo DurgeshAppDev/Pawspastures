@@ -6,7 +6,7 @@ function getCacheKey(userId) {
   return `${PROFILE_CACHE_PREFIX}${userId}`;
 }
 
-export async function getCachedProfile(userId) {
+async function readCache(userId) {
   if (!userId) {
     return null;
   }
@@ -25,7 +25,7 @@ export async function getCachedProfile(userId) {
   }
 }
 
-export async function saveCachedProfile(userId, profile, pets = []) {
+async function writeCache(userId, data) {
   if (!userId) {
     return;
   }
@@ -34,14 +34,121 @@ export async function saveCachedProfile(userId, profile, pets = []) {
     await AsyncStorage.setItem(
       getCacheKey(userId),
       JSON.stringify({
-        profile,
-        pets,
+        profile: data.profile || null,
+        pets: Array.isArray(data.pets) ? data.pets : [],
         cachedAt: Date.now(),
       }),
     );
   } catch (error) {
-    console.warn("Failed to save profile cache:", error);
+    console.warn("Failed to write profile cache:", error);
+    throw error;
   }
+}
+
+export async function getCachedProfile(userId) {
+  return readCache(userId);
+}
+
+export async function saveCachedProfile(userId, profile, pets = []) {
+  if (!userId) {
+    return;
+  }
+
+  await writeCache(userId, {
+    profile,
+    pets,
+  });
+}
+
+export async function updateCachedProfile(userId, profileData) {
+  const cache = await readCache(userId);
+
+  if (!cache) {
+    return;
+  }
+
+  await writeCache(userId, {
+    profile: {
+      ...(cache.profile || {}),
+      ...profileData,
+    },
+    pets: cache.pets || [],
+  });
+}
+
+export async function addCachedPet(userId, pet) {
+  const cache = await readCache(userId);
+
+  if (!cache) {
+    return;
+  }
+
+  const pets = Array.isArray(cache.pets) ? cache.pets : [];
+
+  const existingIndex = pets.findIndex(
+    (item) => item.id === pet.id || item.petId === pet.petId,
+  );
+
+  if (existingIndex >= 0) {
+    pets[existingIndex] = {
+      ...pets[existingIndex],
+      ...pet,
+    };
+  } else {
+    pets.push(pet);
+  }
+
+  await writeCache(userId, {
+    profile: cache.profile || null,
+    pets,
+  });
+}
+
+export async function updateCachedPet(userId, petId, petData) {
+  const cache = await readCache(userId);
+
+  if (!cache) {
+    return;
+  }
+
+  const pets = Array.isArray(cache.pets) ? cache.pets : [];
+
+  const updatedPets = pets.map((pet) => {
+    if (pet.id === petId || pet.petId === petId) {
+      return {
+        ...pet,
+        ...petData,
+        id: pet.id || petId,
+        petId: pet.petId || petId,
+      };
+    }
+
+    return pet;
+  });
+
+  await writeCache(userId, {
+    profile: cache.profile || null,
+    pets: updatedPets,
+  });
+}
+
+export async function removeCachedPet(userId, petId) {
+  const cache = await readCache(userId);
+
+  if (!cache) {
+    return;
+  }
+
+  const pets = Array.isArray(cache.pets) ? cache.pets : [];
+
+  const updatedPets = pets.filter(
+    (pet) => pet.id !== petId && pet.petId !== petId,
+  );
+
+  await writeCache(userId, {
+    profile: cache.profile || null,
+    pets: updatedPets,
+  });
 }
 
 export async function clearCachedProfile(userId) {
