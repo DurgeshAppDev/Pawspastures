@@ -7,12 +7,17 @@ import {
 
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
+import * as ImageManipulator from "expo-image-manipulator";
+
 import { db, storage } from "../config/firebase";
 
 const STORAGE_ENABLED =
   process.env.EXPO_PUBLIC_FIREBASE_STORAGE_ENABLED === "true";
 
 const ONBOARDING_VERSION = 1;
+
+const MAX_IMAGE_WIDTH = 1200;
+const IMAGE_QUALITY = 0.75;
 
 const normalizeString = (value) =>
   typeof value === "string" ? value.trim() : "";
@@ -119,7 +124,46 @@ const validatePetData = (pet) => {
   };
 };
 
-const uploadImage = async (uid, uri, storagePath) => {
+/*
+ * Compress and resize the image before uploading.
+ *
+ * The original image selected by the user is not changed.
+ */
+const prepareImageForUpload = async (uri) => {
+  if (!uri) {
+    return null;
+  }
+
+  /*
+   * If this is already a Firebase/download URL,
+   * don't process it again.
+   */
+  if (uri.startsWith("https://") || uri.startsWith("http://")) {
+    return uri;
+  }
+
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [
+      {
+        resize: {
+          width: MAX_IMAGE_WIDTH,
+        },
+      },
+    ],
+    {
+      compress: IMAGE_QUALITY,
+      format: ImageManipulator.SaveFormat.JPEG,
+    },
+  );
+
+  return result.uri;
+};
+
+/*
+ * Upload a prepared image to Firebase Storage.
+ */
+const uploadImage = async (uri, storagePath) => {
   if (!uri) {
     return null;
   }
@@ -134,7 +178,10 @@ const uploadImage = async (uid, uri, storagePath) => {
     throw new Error("Firebase Storage is not configured.");
   }
 
-  if (uri.startsWith("https://")) {
+  /*
+   * Already uploaded image.
+   */
+  if (uri.startsWith("https://") || uri.startsWith("http://")) {
     return uri;
   }
 
@@ -149,7 +196,7 @@ const uploadImage = async (uid, uri, storagePath) => {
   const imageRef = ref(storage, storagePath);
 
   await uploadBytes(imageRef, blob, {
-    contentType: blob.type || "image/jpeg",
+    contentType: "image/jpeg",
   });
 
   return await getDownloadURL(imageRef);
@@ -164,43 +211,79 @@ export const completeOnboarding = async (userId, onboardingData) => {
     throw new Error("Onboarding data is invalid.");
   }
 
+  /*
+   * Keep the existing onboarding structure.
+   */
   const userData = validateUserData(onboardingData.user);
+
   const petData = validatePetData(onboardingData.pet);
 
-  // USER PROFILE IMAGE
-
-  const profileImageUrl = userData.profileImageUri
-    ? await uploadImage(
-        userId,
-        userData.profileImageUri,
-        `users/${userId}/profile/profile-image.jpg`,
-      )
-    : null;
-
-  // CREATE PET DOCUMENT ID BEFORE UPLOADING PET IMAGE
-
+  /*
+   * Create the pet document ID first.
+   *
+   * This is required because the pet image is stored at:
+   *
+   * users/{uid}/pets/{petId}/profile.jpg
+   */
   const petsCollectionRef = collection(db, "users", userId, "pets");
 
   const petRef = doc(petsCollectionRef);
 
-  // PET IMAGE
+  /*
+   * Prepare both images at the same time.
+   *
+   * Previously:
+   *
+   * profile image → wait
+   * pet image     → wait
+   *
+   * Now:
+   *
+   * profile image ─┐
+   *                ├── parallel
+   * pet image ─────┘
+   */
+  const [preparedProfileImage, preparedPetImage] = await Promise.all([
+    userData.profileImageUri
+      ? prepareImageForUpload(userData.profileImageUri)
+      : Promise.resolve(null),
 
-  const petImageUrl = petData.imageUri
-    ? await uploadImage(
-        userId,
-        petData.imageUri,
-        `users/${userId}/pets/${petRef.id}/profile.jpg`,
-      )
-    : null;
+    petData.imageUri
+      ? prepareImageForUpload(petData.imageUri)
+      : Promise.resolve(null),
+  ]);
 
-  // FIRESTORE BATCH
+  /*
+   * Upload both images at the same time.
+   */
+  const [profileImageUrl, petImageUrl] = await Promise.all([
+    preparedProfileImage
+      ? uploadImage(
+          preparedProfileImage,
+          `users/${userId}/profile/profile-image.jpg`,
+        )
+      : Promise.resolve(null),
 
+    preparedPetImage
+      ? uploadImage(
+          preparedPetImage,
+          `users/${userId}/pets/${petRef.id}/profile.jpg`,
+        )
+      : Promise.resolve(null),
+  ]);
+
+  /*
+   * One Firestore batch.
+   */
   const batch = writeBatch(db);
 
   const userRef = doc(db, "users", userId);
 
-  // USER PROFILE
-
+  /*
+   * USER PROFILE
+   *
+   * Same structure as your existing code.
+   */
   batch.set(
     userRef,
     {
@@ -227,28 +310,45 @@ export const completeOnboarding = async (userId, onboardingData) => {
     },
   );
 
-  // FIRST PET
-
+  /*
+   * FIRST PET
+   *
+   * Same structure as your existing code.
+   */
   batch.set(petRef, {
     petId: petRef.id,
+
     petName: petData.petName,
+
     type: petData.type,
+
     gender: petData.gender,
+
     age: petData.age,
+
     size: petData.size,
+
     imageUrl: petImageUrl,
 
     createdAt: serverTimestamp(),
+
     updatedAt: serverTimestamp(),
   });
 
+  /*
+   * Commit user + pet together.
+   */
   await batch.commit();
 
   return {
     success: true,
+
     userId,
+
     petId: petRef.id,
+
     profileImageUrl,
+
     petImageUrl,
   };
 };
