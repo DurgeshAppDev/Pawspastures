@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StatusBar,
   Text,
@@ -21,7 +20,6 @@ import { auth } from "./src/config/firebase";
 
 import { getUserProfile } from "./src/services/userServices";
 
-import { requestStartupPermissions } from "./src/services/permissions";
 
 import AuthLayout from "./app/auth/AuthLayout";
 import OnboardingLayout from "./app/onboarding/OnboardingLayout";
@@ -65,7 +63,6 @@ export default function App() {
   const [profileError, setProfileError] = useState(null);
 
   const requestIdRef = useRef(0);
-  const permissionsRequestedRef = useRef(false);
 
   const loadUserProfile = useCallback(async (currentUser) => {
     if (!currentUser?.uid) {
@@ -189,18 +186,6 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (
-      !checkingAuth &&
-      !profileError &&
-      Platform.OS !== "web" &&
-      !permissionsRequestedRef.current
-    ) {
-      permissionsRequestedRef.current = true;
-
-      requestStartupPermissions();
-    }
-  }, [checkingAuth, profileError]);
 
   const handleOnboardingComplete = useCallback(() => {
     setProfileError(null);

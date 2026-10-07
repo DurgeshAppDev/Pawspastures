@@ -76,8 +76,6 @@ function DropdownField({ label, value, options, placeholder, onChange }) {
                   setOpen(false);
                 }}
               >
-              
-
                 <Text
                   className={
                     selected

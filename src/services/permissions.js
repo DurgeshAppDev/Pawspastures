@@ -151,28 +151,6 @@ export const requestGalleryPermission = async () => {
   }
 };
 
-export const requestStartupPermissions = async () => {
-  try {
-    if (Platform.OS === "web") {
-      return;
-    }
-
-    console.log("Starting startup permission requests...");
-
-    await requestNotificationPermission();
-
-    await requestCameraPermission();
-
-    await requestMicrophonePermission();
-
-    await requestGalleryPermission();
-
-    console.log("Startup permission requests completed.");
-  } catch (error) {
-    console.log("Startup permission error:", error);
-  }
-};
-
 export const openStoryCamera = async () => {
   try {
     /**
