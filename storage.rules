@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validImageUpload() {
+      return request.resource != null
+             && request.resource.size < 10 * 1024 * 1024
+             && request.resource.contentType.matches('image/.*');
+    }
+
+    // Profile and pet pictures are visible to signed-in community members.
+    match /users/{userId}/profile/{fileName} {
+      allow read: if signedIn();
+      allow write: if ownsUser(userId)
+                   && (request.resource == null || validImageUpload());
+    }
+
+    match /users/{userId}/pets/{petId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if ownsUser(userId)
+                   && (request.resource == null || validImageUpload());
+    }
+
+    // Feed media is readable to signed-in users; only its owner can upload or delete it.
+    match /users/{userId}/posts/{fileName} {
+      allow read: if signedIn();
+      allow write: if ownsUser(userId)
+                   && (request.resource == null
+                       || (request.resource.size < 100 * 1024 * 1024
+                           && request.resource.contentType.matches('(image|video)/.*')));
+    }
+
+    match /users/{userId}/stories/{fileName} {
+      allow read: if signedIn();
+      allow write: if ownsUser(userId)
+                   && (request.resource == null
+                       || (request.resource.size < 100 * 1024 * 1024
+                           && request.resource.contentType.matches('(image|video)/.*')));
+    }
+  }
+}

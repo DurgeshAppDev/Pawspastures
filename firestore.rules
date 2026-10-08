@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // Account profile documents remain readable and writable only by their owner.
+    match /users/{userId} {
+      allow read: if ownsUser(userId);
+      allow create: if ownsUser(userId)
+                    && request.resource.data.uid == userId;
+      allow update: if ownsUser(userId)
+                    && request.resource.data.uid == resource.data.uid;
+      allow delete: if ownsUser(userId);
+
+      match /pets/{petId} {
+        allow read: if ownsUser(userId);
+        allow create: if ownsUser(userId)
+                      && request.resource.data.petId == petId;
+        allow update: if ownsUser(userId)
+                      && request.resource.data.petId == resource.data.petId;
+        allow delete: if ownsUser(userId);
+      }
+
+      // Authenticated users can discover reels; owners manage their own posts.
+      match /posts/{postId} {
+        allow read: if signedIn();
+        allow create: if ownsUser(userId)
+                      && request.resource.data.userId == userId
+                      && request.resource.data.postId == postId
+                      && request.resource.data.kind in ['post', 'reel']
+                      && request.resource.data.mediaUrl is string;
+        allow update: if ownsUser(userId)
+                      && request.resource.data.userId == resource.data.userId;
+
+        // A viewer may change only the view counter, by exactly one.
+        allow update: if signedIn()
+                      && request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['views'])
+                      && request.resource.data.views is int
+                      && ((resource.data.keys().hasAny(['views'])
+                           && resource.data.views is int
+                           && request.resource.data.views == resource.data.views + 1)
+                          || (!resource.data.keys().hasAny(['views'])
+                              && request.resource.data.views == 1));
+        allow delete: if ownsUser(userId);
+      }
+    }
+
+    // Collection-group queries span every collection named "posts". This
+    // recursive read rule lets signed-in clients query the global reel feed;
+    // writes remain restricted by the owner-scoped rule above.
+    match /{documentPath=**}/posts/{postId} {
+      allow read: if signedIn();
+    }
+
+    // Story records are shared with signed-in users and can only be created or
+    // removed by their owner. The client query hides stories after 24 hours.
+    match /stories/{storyId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.storyId == storyId
+                    && request.resource.data.mediaType in ['image', 'video']
+                    && request.resource.data.mediaUrl is string
+                    && request.resource.data.expiresAt is timestamp;
+      allow update: if false;
+      allow delete: if signedIn()
+                    && resource.data.userId == request.auth.uid;
+    }
+  }
+}
