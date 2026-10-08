@@ -73,8 +73,8 @@ async function prepareImage(uri) {
   return response.blob();
 }
 
-const upload = (mediaRef, blob, contentType) => new Promise((resolve, reject) => {
-  const task = uploadBytesResumable(mediaRef, blob, { contentType: blob.type || contentType });
+const upload = (mediaRef, blob) => new Promise((resolve, reject) => {
+  const task = uploadBytesResumable(mediaRef, blob, { contentType: blob.type || "application/octet-stream" });
   task.on("state_changed", undefined, reject, () => resolve(task.snapshot));
 });
 
@@ -106,7 +106,7 @@ export async function addStory(storyData) {
 
   const mediaRef = ref(storage, `users/${user.uid}/stories/${storyDoc.id}.${isVideo ? "mp4" : "jpg"}`);
   try {
-    await upload(mediaRef, blob, isVideo ? "video/mp4" : "image/jpeg");
+    await upload(mediaRef, blob);
     const mediaUrl = await getDownloadURL(mediaRef);
     const now = Date.now();
     const story = {

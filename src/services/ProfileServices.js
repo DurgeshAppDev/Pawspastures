@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -11,6 +10,11 @@ import {
 
 import { db } from "../config/firebase";
 import { getCachedProfile, saveCachedProfile } from "./profileCache";
+import {
+  deleteProfileImageUrl,
+  uploadPetImage,
+  uploadProfileImage,
+} from "./ProfileMediaServices";
 
 // USER PROFILE
 
@@ -38,15 +42,31 @@ export async function updateUserProfile(userId, profileData) {
   }
 
   const userRef = doc(db, "users", userId);
-
-  await setDoc(
-    userRef,
-    {
-      ...profileData,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
+  const changesProfileImage = Object.prototype.hasOwnProperty.call(
+    profileData,
+    "profileImageUrl",
   );
+  const selectedImage = profileData.profileImageUrl;
+  const profileImageUrl = selectedImage
+    ? await uploadProfileImage(userId, selectedImage)
+    : null;
+
+  try {
+    await setDoc(
+      userRef,
+      {
+        ...profileData,
+        ...(changesProfileImage ? { profileImageUrl } : {}),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    if (profileImageUrl && profileImageUrl !== selectedImage) {
+      await deleteProfileImageUrl(profileImageUrl);
+    }
+    throw error;
+  }
 
   const snapshot = await getDoc(userRef);
 
@@ -137,25 +157,32 @@ export async function createUserPet(userId, petData) {
   }
 
   const petsRef = collection(db, "users", userId, "pets");
-
-  const petRef = await addDoc(petsRef, {
+  const petRef = doc(petsRef);
+  const selectedImage = petData.imageUri || petData.imageUrl || null;
+  const imageUrl = selectedImage
+    ? await uploadPetImage(userId, petRef.id, selectedImage)
+    : null;
+  const pet = {
+    petId: petRef.id,
     petName: petData.petName || "",
     type: petData.type || "",
     gender: petData.gender || "",
     age: Number(petData.age) || 0,
     size: petData.size || "",
-    imageUrl: petData.imageUrl || null,
+    imageUrl,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
 
-  await setDoc(
-    petRef,
-    {
-      petId: petRef.id,
-    },
-    { merge: true },
-  );
+  try {
+    // Include petId in the first and only create write to satisfy Firestore rules.
+    await setDoc(petRef, pet);
+  } catch (error) {
+    if (imageUrl && imageUrl !== selectedImage) {
+      await deleteProfileImageUrl(imageUrl);
+    }
+    throw error;
+  }
 
   const snapshot = await getDoc(petRef);
 
@@ -175,15 +202,34 @@ export async function updateUserPet(userId, petId, petData) {
   }
 
   const petRef = doc(db, "users", userId, "pets", petId);
+  const hasImage =
+    Object.prototype.hasOwnProperty.call(petData, "imageUri") ||
+    Object.prototype.hasOwnProperty.call(petData, "imageUrl");
+  const selectedImage = petData.imageUri || petData.imageUrl || null;
+  const imageUrl = selectedImage
+    ? await uploadPetImage(userId, petId, selectedImage)
+    : null;
+  const petFields = { ...petData };
+  delete petFields.imageUri;
+  delete petFields.imageUrl;
 
-  await setDoc(
-    petRef,
-    {
-      ...petData,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  try {
+    await setDoc(
+      petRef,
+      {
+        ...petFields,
+        petId,
+        ...(hasImage ? { imageUrl } : {}),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    if (imageUrl && imageUrl !== selectedImage) {
+      await deleteProfileImageUrl(imageUrl);
+    }
+    throw error;
+  }
 
   const snapshot = await getDoc(petRef);
 
