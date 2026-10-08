@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
+import { getCachedProfile, saveCachedProfile } from "./profileCache";
 
 // USER PROFILE
 
@@ -73,6 +74,39 @@ export async function getUserPets(userId) {
     id: petDoc.id,
     ...petDoc.data(),
   }));
+}
+
+/** Fetch profile data from Firestore and persist it in the local cache. */
+export async function fetchAndCacheUserProfileData(userId) {
+  if (!userId) {
+    throw new Error("User ID is required.");
+  }
+
+  const [profile, pets] = await Promise.all([
+    getUserProfile(userId),
+    getUserPets(userId),
+  ]);
+
+  if (profile) {
+    await saveCachedProfile(userId, profile, pets);
+  }
+
+  return { profile, pets };
+}
+
+/** Read cached profile data; reach Firestore only when the cache is missing. */
+export async function getUserProfileData(userId) {
+  if (!userId) {
+    throw new Error("User ID is required.");
+  }
+
+  const cached = await getCachedProfile(userId);
+
+  if (cached?.profile && Array.isArray(cached.pets)) {
+    return cached;
+  }
+
+  return fetchAndCacheUserProfileData(userId);
 }
 
 export async function getUserPet(userId, petId) {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 
 import { View, Text, ScrollView, StatusBar, Platform } from "react-native";
 
@@ -12,6 +12,9 @@ import HomeHeader from "../../src/components/home/HomeHeader";
 import StoriesSection from "../../src/components/home/StoriesSection";
 import PostCard from "../../src/components/home/PostCard";
 import ReelCard from "../../src/components/home/ReelCard";
+import { useFocusEffect } from "@react-navigation/native";
+import { auth } from "../../src/config/firebase";
+import { getStoriesGroupedByUser } from "../../src/services/StoryServices";
 
 const FEED = [
   {
@@ -49,6 +52,17 @@ const FEED = [
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const [storyGroups, setStoryGroups] = useState([]);
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    getStoriesGroupedByUser()
+      .then((groups) => {
+        if (active) setStoryGroups(groups);
+      })
+      .catch((error) => console.error("Stories loading failed:", error));
+    return () => { active = false; };
+  }, []));
 
   const isWeb = Platform.OS === "web";
 
@@ -96,12 +110,17 @@ export default function HomeScreen() {
             {/* STORIES */}
 
             <StoriesSection
+              ownStory={storyGroups.find((group) => group.userId === auth.currentUser?.uid)}
+              stories={storyGroups.filter((group) => group.userId !== auth.currentUser?.uid)}
               onStoryPress={(story) => {
-                if (story.isOwn) {
+                if (story.isOwn && story.create) {
+                  navigation.navigate("AddStory");
+                } else if (story.isOwn && !story.stories?.length) {
                   navigation.navigate("AddStory");
                 } else {
                   navigation.navigate("StoryViewer", {
-                    storyId: story.id,
+                    stories: story.stories,
+                    initialIndex: 0,
                   });
                 }
               }}

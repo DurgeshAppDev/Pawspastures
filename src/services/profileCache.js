@@ -63,16 +63,12 @@ export async function saveCachedProfile(userId, profile, pets = []) {
 export async function updateCachedProfile(userId, profileData) {
   const cache = await readCache(userId);
 
-  if (!cache) {
-    return;
-  }
-
   await writeCache(userId, {
     profile: {
-      ...(cache.profile || {}),
+      ...(cache?.profile || {}),
       ...profileData,
     },
-    pets: cache.pets || [],
+    pets: cache?.pets || [],
   });
 }
 
@@ -107,14 +103,12 @@ export async function addCachedPet(userId, pet) {
 export async function updateCachedPet(userId, petId, petData) {
   const cache = await readCache(userId);
 
-  if (!cache) {
-    return;
-  }
+  const pets = Array.isArray(cache?.pets) ? cache.pets : [];
 
-  const pets = Array.isArray(cache.pets) ? cache.pets : [];
-
+  let found = false;
   const updatedPets = pets.map((pet) => {
     if (pet.id === petId || pet.petId === petId) {
+      found = true;
       return {
         ...pet,
         ...petData,
@@ -126,8 +120,16 @@ export async function updateCachedPet(userId, petId, petData) {
     return pet;
   });
 
+  if (!found) {
+    updatedPets.push({
+      ...petData,
+      id: petData.id || petId,
+      petId: petData.petId || petId,
+    });
+  }
+
   await writeCache(userId, {
-    profile: cache.profile || null,
+    profile: cache?.profile || null,
     pets: updatedPets,
   });
 }

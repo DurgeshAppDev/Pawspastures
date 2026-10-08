@@ -15,10 +15,12 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { getAuth } from "firebase/auth";
 
-import { updateUserProfile } from "../../src/services/ProfileServices";
+import {
+  getUserProfileData,
+  updateUserProfile,
+} from "../../src/services/ProfileServices";
 
 import {
-  getCachedProfile,
   updateCachedProfile,
 } from "../../src/services/profileCache";
 
@@ -156,12 +158,10 @@ export default function EditProfileScreen() {
       setLoading(true);
       setError("");
 
-      const cache = await getCachedProfile(userId);
-
-      const profile = cache?.profile;
+      const { profile } = await getUserProfileData(userId);
 
       if (!profile) {
-        throw new Error("Your local profile data is not available.");
+        throw new Error("Your profile data could not be found.");
       }
 
       setName(profile.name || "");
@@ -278,12 +278,7 @@ export default function EditProfileScreen() {
       setSaving(true);
       setError("");
 
-      const currentCache = await getCachedProfile(userId);
-
-      const currentProfile = currentCache?.profile || {};
-
-      const updatedProfile = {
-        ...currentProfile,
+      const firebaseProfile = await updateUserProfile(userId, {
         name: name.trim(),
         age: Number(age),
         gender,
@@ -291,16 +286,6 @@ export default function EditProfileScreen() {
         bio: bio.trim(),
         interests,
         profileImageUrl: profileImageUrl || null,
-      };
-
-      const firebaseProfile = await updateUserProfile(userId, {
-        name: updatedProfile.name,
-        age: updatedProfile.age,
-        gender: updatedProfile.gender,
-        location: updatedProfile.location,
-        bio: updatedProfile.bio,
-        interests: updatedProfile.interests,
-        profileImageUrl: updatedProfile.profileImageUrl,
       });
 
       if (!firebaseProfile) {

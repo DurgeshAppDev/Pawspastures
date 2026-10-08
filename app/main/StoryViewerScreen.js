@@ -247,6 +247,33 @@ export default function StoryViewerScreen({ route, navigation }) {
         />
       )}
 
+      {currentStory.overlayText ? (
+        <View
+          pointerEvents="none"
+          className="absolute px-3"
+          style={{
+            left: `${Math.min(88, Math.max(0, ((currentStory.overlayTextPosition?.x ?? 40) / 320) * 100))}%`,
+            top: `${Math.min(82, Math.max(18, ((currentStory.overlayTextPosition?.y ?? 210) / 500) * 100))}%`,
+            maxWidth: "88%",
+          }}
+        >
+          <Text
+            style={{
+              color: currentStory.overlayTextColor || colors.white,
+              fontSize: Math.min(currentStory.overlayTextSize || 24, 36),
+              fontWeight: currentStory.overlayTextBold === false ? "400" : "700",
+              fontStyle: currentStory.overlayTextItalic ? "italic" : "normal",
+              textDecorationLine: currentStory.overlayTextUnderline ? "underline" : "none",
+              textAlign: currentStory.overlayTextAlign || "left",
+              textShadowColor: "rgba(0,0,0,0.75)",
+              textShadowRadius: 5,
+            }}
+          >
+            {currentStory.overlayText}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Dark top gradient-like overlay */}
       <View
         pointerEvents="none"

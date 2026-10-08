@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { auth } from "../config/firebase";
 
-import { getUserPets, getUserProfile } from "../services/ProfileServices";
-
-import { getCachedProfile, saveCachedProfile } from "../services/profileCache";
+import { getUserProfileData } from "../services/ProfileServices";
+import { getCachedProfile } from "../services/profileCache";
 
 export default function useProfile() {
   const [profile, setProfile] = useState(null);
@@ -37,15 +36,15 @@ export default function useProfile() {
         setRefreshing(true);
       }
 
-      const [firebaseProfile, firebasePets] = await Promise.all([
-        getUserProfile(userId),
-        getUserPets(userId),
-      ]);
+      if (cached?.profile && Array.isArray(cached.pets)) {
+        setRefreshing(false);
+        return;
+      }
 
-      setProfile(firebaseProfile);
-      setPets(firebasePets);
-
-      await saveCachedProfile(userId, firebaseProfile, firebasePets);
+      setRefreshing(true);
+      const profileData = await getUserProfileData(userId);
+      setProfile(profileData.profile);
+      setPets(profileData.pets);
     } catch (err) {
       console.error("Profile loading error:", err);
 
@@ -64,6 +63,5 @@ export default function useProfile() {
     pets,
     refreshing,
     error,
-    refreshProfile: loadProfile,
   };
 }

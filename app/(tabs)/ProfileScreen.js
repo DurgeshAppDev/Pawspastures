@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 
 import { ScrollView, StatusBar, View, useWindowDimensions } from "react-native";
 
@@ -14,6 +14,8 @@ import { colors } from "../../src/theme";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
+  const profilePostsRef = useRef(null);
+  const loadMoreArmedRef = useRef(false);
   const insets = useSafeAreaInsets();
 
   const { width } = useWindowDimensions();
@@ -59,6 +61,19 @@ export default function ProfileScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={200}
+          onScroll={(event) => {
+            const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+            const distanceFromBottom =
+              contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+            if (contentOffset.y <= 0 || distanceFromBottom > 450) {
+              loadMoreArmedRef.current = false;
+            } else if (distanceFromBottom < 260 && !loadMoreArmedRef.current) {
+              loadMoreArmedRef.current = true;
+              profilePostsRef.current?.loadMore?.();
+            }
+          }}
           contentContainerStyle={{
             paddingBottom: isWeb ? 130 : 110,
             paddingHorizontal: horizontalPadding,
@@ -72,7 +87,7 @@ export default function ProfileScreen() {
             }}
           >
             <ProfileInfo />
-            <ProfilePosts />
+            <ProfilePosts ref={profilePostsRef} />
           </View>
         </ScrollView>
 

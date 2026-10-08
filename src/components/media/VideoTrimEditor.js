@@ -290,7 +290,7 @@ export default function VideoTrimEditor({
 
         theme: "dark",
 
-        headerText: "Trim Story Video",
+        headerText: "Trim Video",
 
         cancelButtonText: "Cancel",
 

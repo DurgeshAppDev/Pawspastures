@@ -19,7 +19,7 @@ import ProfileScreen from "../(tabs)/ProfileScreen";
 import AddStoryScreen from "./AddStoryScreen";
 import StoryViewerScreen from "./StoryViewerScreen";
 import MediaEditorScreen from "./MediaEditorScreen";
-import NewPostScreen from "./NewPostScreen";
+import NewPostScreen from "./CreatePostScreen";
 import SettingsScreen from "./SettingsScreen";
 
 import EditProfileScreen from "../profile/EditProfileScreen";

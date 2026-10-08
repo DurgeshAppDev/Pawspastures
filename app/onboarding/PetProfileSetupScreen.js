@@ -25,6 +25,7 @@ import {
   completeOnboarding,
   isFirebaseStorageEnabled,
 } from "../../src/services/OnboardingServices";
+import { fetchAndCacheUserProfileData } from "../../src/services/ProfileServices";
 
 import { colors } from "../../src/theme";
 
@@ -288,6 +289,13 @@ export default function PetProfileSetupScreen({ onComplete }) {
         user: draft.user,
         pet: draft.pet,
       });
+
+      try {
+        await fetchAndCacheUserProfileData(user.uid);
+      } catch (cacheError) {
+        // Onboarding is already saved to Firestore; the next cache miss can retry.
+        console.warn("Unable to populate profile cache after onboarding:", cacheError);
+      }
 
       try {
         await clearOnboardingDraft(user.uid);

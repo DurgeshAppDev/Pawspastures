@@ -5,6 +5,7 @@ import {
   BackHandler,
   Image,
   KeyboardAvoidingView,
+  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -23,10 +24,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/theme";
 
 import MediaTextToolbar from "../../src/components/media/MediaTextToolbar";
+import VideoTrimEditor from "../../src/components/media/VideoTrimEditor";
 
 const isWeb = Platform.OS === "web";
 
 const MAX_STORY_VIDEO_DURATION = 15;
+const MAX_REEL_VIDEO_DURATION = 30;
 
 const PREVIEW_HEIGHT = 500;
 
@@ -213,7 +216,14 @@ export default function MediaEditorScreen({ navigation, route }) {
 
   const [checkingVideo, setCheckingVideo] = useState(mediaType === "video");
 
-  const [isTrimming, setIsTrimming] = useState(false);
+  const [showVideoTrimmer, setShowVideoTrimmer] = useState(false);
+
+  const maxVideoDuration =
+    mode === "story"
+      ? MAX_STORY_VIDEO_DURATION
+      : mode === "reel"
+        ? MAX_REEL_VIDEO_DURATION
+        : null;
 
   /* =======================================================
      OTHER STATE
@@ -429,183 +439,10 @@ export default function MediaEditorScreen({ navigation, route }) {
      ======================================================= */
 
   const openVideoTrimmer = useCallback(() => {
-    if (!mediaUri) {
-      return;
+    if (mediaUri && mediaType === "video") {
+      setShowVideoTrimmer(true);
     }
-
-    /*
-     * Web
-     *
-     * There is intentionally no native trimmer here.
-     * The native VideoTrim module must never be loaded
-     * on Web.
-     */
-    if (Platform.OS === "web") {
-      Alert.alert(
-        "Video trimming",
-        "Video trimming is currently available on Android and iOS. On Web, please select a video that is already 15 seconds or shorter.",
-      );
-
-      return;
-    }
-
-    /*
-     * Native dynamic import.
-     */
-    try {
-      setIsTrimming(true);
-
-      const ReactNative = require("react-native");
-
-      const NativeModules = ReactNative.NativeModules;
-
-      const NativeEventEmitter = ReactNative.NativeEventEmitter;
-
-      /*
-       * VideoTrim must be installed and available
-       * in the native development build.
-       */
-      const VideoTrim = NativeModules?.VideoTrim;
-
-      if (!VideoTrim) {
-        setIsTrimming(false);
-
-        Alert.alert(
-          "Video trimmer unavailable",
-          "The native video trimming module is not installed in the current development build.",
-        );
-
-        return;
-      }
-
-      /*
-       * Different versions of react-native-video-trim
-       * expose showEditor differently.
-       */
-      let showEditorFunction = null;
-
-      try {
-        const VideoTrimPackage = require("react-native-video-trim");
-
-        showEditorFunction =
-          VideoTrimPackage?.showEditor || VideoTrimPackage?.default?.showEditor;
-      } catch (error) {
-        console.log("VideoTrim package load error:", error);
-      }
-
-      if (typeof showEditorFunction !== "function") {
-        setIsTrimming(false);
-
-        Alert.alert(
-          "Video trimmer unavailable",
-          "The video trimming package is missing or its native API is unavailable.",
-        );
-
-        return;
-      }
-
-      /*
-       * Listen for trimming result.
-       */
-      const emitter = new NativeEventEmitter(VideoTrim);
-
-      const subscription = emitter.addListener("VideoTrim", (event) => {
-        if (!event) {
-          return;
-        }
-
-        if (event.name === "onFinishTrimming") {
-          const outputPath = event.outputPath;
-
-          if (outputPath) {
-            setMediaUri(outputPath);
-
-            setVideoDuration(MAX_STORY_VIDEO_DURATION);
-
-            setIsTrimming(false);
-
-            Alert.alert(
-              "Video trimmed",
-              "Your video is now ready for your story.",
-            );
-          } else {
-            setIsTrimming(false);
-          }
-
-          subscription.remove();
-
-          return;
-        }
-
-        if (event.name === "onCancel" || event.name === "onCancelTrimming") {
-          setIsTrimming(false);
-
-          subscription.remove();
-
-          return;
-        }
-
-        if (event.name === "onError") {
-          console.log("Video trim error:", event);
-
-          setIsTrimming(false);
-
-          subscription.remove();
-
-          Alert.alert(
-            "Trim failed",
-            event.message || "Unable to trim the video.",
-          );
-        }
-      });
-
-      /*
-       * Open native editor.
-       *
-       * maxDuration is milliseconds.
-       */
-      showEditorFunction(mediaUri, {
-        type: "video",
-
-        maxDuration: 15000,
-
-        minDuration: 1000,
-
-        theme: "dark",
-
-        headerText: "Trim Story Video",
-
-        cancelButtonText: "Cancel",
-
-        saveButtonText: "Use Video",
-
-        trimmingText: "Preparing your story video...",
-
-        durationFormat: "mm:ss",
-
-        enablePreciseTrimming: true,
-
-        enableCancelTrimming: true,
-
-        closeWhenFinish: true,
-
-        saveToPhoto: false,
-
-        openShareSheetOnFinish: false,
-
-        enableEditTools: false,
-      });
-    } catch (error) {
-      console.log("Unable to open video trimmer:", error);
-
-      setIsTrimming(false);
-
-      Alert.alert(
-        "Unable to trim video",
-        "The video trimming tool could not be opened.",
-      );
-    }
-  }, [mediaUri]);
+  }, [mediaUri, mediaType]);
 
   /* =======================================================
      ADD TEXT
@@ -695,14 +532,14 @@ export default function MediaEditorScreen({ navigation, route }) {
      * Story video duration validation.
      */
     if (
-      mode === "story" &&
+      maxVideoDuration &&
       mediaType === "video" &&
       videoDuration &&
-      videoDuration > MAX_STORY_VIDEO_DURATION
+      videoDuration > maxVideoDuration
     ) {
       Alert.alert(
         "Video is too long",
-        "Story videos can be a maximum of 15 seconds.",
+        `${mode === "story" ? "Stories" : "Reels"} can be a maximum of ${maxVideoDuration} seconds.`,
         [
           {
             text: "Trim Video",
@@ -726,13 +563,9 @@ export default function MediaEditorScreen({ navigation, route }) {
            ========================================== */
 
       if (mode === "story") {
-        const { addStory } = require("../../src/services/StoryStore");
+        const { addStory } = require("../../src/services/StoryServices");
 
         await addStory({
-          userId: "current-user",
-
-          userName: "You",
-
           petName,
 
           petImage,
@@ -740,6 +573,8 @@ export default function MediaEditorScreen({ navigation, route }) {
           mediaType,
 
           mediaUri,
+
+          videoDuration,
 
           caption: text,
 
@@ -812,6 +647,7 @@ export default function MediaEditorScreen({ navigation, route }) {
     textAlign,
     navigation,
     openVideoTrimmer,
+    maxVideoDuration,
     createEditorData,
   ]);
 
@@ -871,7 +707,11 @@ export default function MediaEditorScreen({ navigation, route }) {
           </Pressable>
 
           <Text className="text-[18px] font-bold text-text-primary">
-            {mode === "story" ? "Edit Story" : "Edit Post"}
+            {mode === "story"
+              ? "Edit Story"
+              : mode === "reel"
+                ? "Edit Reel"
+                : "Edit Post"}
           </Text>
 
           <Pressable
@@ -970,7 +810,7 @@ export default function MediaEditorScreen({ navigation, route }) {
               VIDEO INFORMATION
               ================================================= */}
 
-          {mode === "story" && mediaType === "video" && (
+          {(mode === "story" || mode === "reel") && mediaType === "video" && (
             <View className="mx-4 mt-4 rounded-[14px] border border-border bg-surface p-4">
               <View className="flex-row items-center">
                 <Ionicons
@@ -981,11 +821,11 @@ export default function MediaEditorScreen({ navigation, route }) {
 
                 <View className="ml-3 flex-1">
                   <Text className="text-[15px] font-bold text-text-primary">
-                    Story video
+                    {mode === "story" ? "Story video" : "Reel video"}
                   </Text>
 
                   <Text className="mt-1 text-[13px] text-text-secondary">
-                    Maximum duration: 15 seconds
+                    Maximum duration: {maxVideoDuration} seconds
                   </Text>
 
                   {videoDuration ? (
@@ -999,6 +839,16 @@ export default function MediaEditorScreen({ navigation, route }) {
                   ) : null}
                 </View>
               </View>
+              <Pressable
+                onPress={openVideoTrimmer}
+                disabled={showVideoTrimmer}
+                className="mt-4 h-[46px] flex-row items-center justify-center rounded-[11px] bg-primary"
+              >
+                <Ionicons name="cut-outline" size={21} color={colors.white} />
+                <Text className="ml-2 text-[14px] font-bold text-white">
+                  {showVideoTrimmer ? "Opening editor..." : "Trim video"}
+                </Text>
+              </Pressable>
             </View>
           )}
 
@@ -1006,9 +856,10 @@ export default function MediaEditorScreen({ navigation, route }) {
               LONG VIDEO WARNING
               ================================================= */}
 
-          {mode === "story" &&
+          {(mode === "story" || mode === "reel") &&
             mediaType === "video" &&
-            videoDuration > MAX_STORY_VIDEO_DURATION && (
+            maxVideoDuration &&
+            videoDuration > maxVideoDuration && (
               <View className="mx-4 mt-4 rounded-[14px] border border-primary bg-surface p-4">
                 <View className="flex-row items-center">
                   <Ionicons
@@ -1019,24 +870,24 @@ export default function MediaEditorScreen({ navigation, route }) {
 
                   <View className="ml-3 flex-1">
                     <Text className="text-[15px] font-bold text-text-primary">
-                      Video is longer than 15 seconds
+                      Video is longer than {maxVideoDuration} seconds
                     </Text>
 
                     <Text className="mt-1 text-[13px] text-text-secondary">
-                      Trim the video before posting your story.
+                      Trim the video before sharing your {mode}.
                     </Text>
                   </View>
                 </View>
 
                 <Pressable
                   onPress={openVideoTrimmer}
-                  disabled={isTrimming}
+                  disabled={showVideoTrimmer}
                   className="mt-3 h-[46px] flex-row items-center justify-center rounded-[11px] bg-primary"
                 >
                   <Ionicons name="cut-outline" size={21} color={colors.white} />
 
                   <Text className="ml-2 text-[14px] font-bold text-white">
-                    {isTrimming ? "Opening..." : "Trim Video"}
+                    {showVideoTrimmer ? "Opening..." : "Trim Video"}
                   </Text>
                 </Pressable>
               </View>
@@ -1107,7 +958,7 @@ export default function MediaEditorScreen({ navigation, route }) {
 
           <Pressable
             onPress={handlePost}
-            disabled={isPosting || isTrimming || checkingVideo}
+            disabled={isPosting || showVideoTrimmer || checkingVideo}
             className="mx-4 mt-7 h-[52px] flex-row items-center justify-center rounded-[14px] bg-primary"
           >
             <Ionicons
@@ -1121,7 +972,7 @@ export default function MediaEditorScreen({ navigation, route }) {
                 ? "Posting..."
                 : mode === "story"
                   ? "Post Story"
-                  : "Post"}
+                  : "Done Editing"}
             </Text>
           </Pressable>
 
@@ -1129,19 +980,30 @@ export default function MediaEditorScreen({ navigation, route }) {
               WEB TRIMMING INFORMATION
               ================================================= */}
 
-          {Platform.OS === "web" &&
-            mode === "story" &&
-            mediaType === "video" &&
-            videoDuration > MAX_STORY_VIDEO_DURATION && (
-              <View className="mx-4 mt-3 rounded-[12px] bg-surface-elevated p-3">
-                <Text className="text-center text-[12px] text-text-secondary">
-                  Video trimming is available on Android and iOS. On Web, please
-                  choose a video that is already 15 seconds or shorter.
-                </Text>
-              </View>
-            )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={showVideoTrimmer}
+        animationType="slide"
+        presentationStyle={Platform.OS === "ios" ? "fullScreen" : "overFullScreen"}
+        onRequestClose={() => setShowVideoTrimmer(false)}
+      >
+        <SafeAreaView className="flex-1 bg-background">
+          <VideoTrimEditor
+            videoUri={mediaUri}
+            maxDuration={maxVideoDuration || MAX_REEL_VIDEO_DURATION}
+            onCancel={() => setShowVideoTrimmer(false)}
+            onTrimComplete={(trimmed) => {
+              setMediaUri(trimmed.uri);
+              setVideoDuration(trimmed.duration);
+              setShowVideoTrimmer(false);
+            }}
+            onError={(error) => {
+              console.error("Video trim failed:", error);
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

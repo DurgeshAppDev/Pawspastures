@@ -373,7 +373,7 @@ export default function VideoTrimEditor({
         setErrorMessage("");
 
         /*
-         * Already within 15 seconds.
+         * Already within the selected maximum duration.
          *
          * No processing required.
          */

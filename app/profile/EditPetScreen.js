@@ -25,11 +25,11 @@ import {
 } from "@react-navigation/native";
 
 import {
-  getCachedProfile,
   updateCachedPet,
 } from "../../src/services/profileCache";
 
 import {
+  getUserProfileData,
   updateUserPet,
 } from "../../src/services/ProfileServices";
 
@@ -223,13 +223,11 @@ export default function EditPetScreen() {
         }
 
         try {
-          const cache =
-            await getCachedProfile(
-              userId,
-            );
+          const profileData =
+            await getUserProfileData(userId);
 
           const pet =
-            cache?.pets?.find(
+            profileData.pets?.find(
               (item) =>
                 item.id === petId ||
                 item.petId === petId,
@@ -237,7 +235,7 @@ export default function EditPetScreen() {
 
           if (!pet) {
             throw new Error(
-              "This pet could not be found in your local profile.",
+              "This pet could not be found in your profile.",
             );
           }
 
