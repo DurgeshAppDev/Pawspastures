@@ -20,7 +20,9 @@ import {
 } from "firebase/storage";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Platform } from "react-native";
+import { getAuth } from "firebase/auth";
 import compressVideoForUpload from "./compressVideoForUpload";
+import { getCachedProfile } from "./profileCache";
 
 import { db, storage } from "../config/firebase";
 
@@ -179,12 +181,25 @@ export async function createUserPost(userId, postData, { onProgress } = {}) {
   try {
     await uploadWithProgress(mediaRef, blob, { contentType }, onProgress);
     const mediaUrl = await getDownloadURL(mediaRef);
+    // Store a small author snapshot so the global feed does not need one
+    // additional Firestore profile read for every reel it renders.
+    const cachedProfile = await getCachedProfile(userId).catch(() => null);
+    const cachedUser = cachedProfile?.profile || {};
+    const firstPet = cachedProfile?.pets?.[0] || {};
+    const user = getAuth().currentUser;
     const post = {
       postId: postRef.id,
       userId,
       kind: postData.kind,
       mediaType: postData.mediaType,
       mediaUrl,
+      authorName: cachedUser.name || user?.displayName || user?.email?.split("@")[0] || "Pet parent",
+      authorPhotoUrl: cachedUser.profileImageUrl || user?.photoURL || null,
+      petName: postData.petName || firstPet.petName || "",
+      petImageUrl: postData.petImageUrl || firstPet.imageUrl || null,
+      keywords: Array.isArray(postData.keywords)
+        ? [...new Set(postData.keywords.map((keyword) => String(keyword).trim().toLowerCase()).filter(Boolean))].slice(0, 10)
+        : [],
       caption: postData.caption?.trim() || "",
       overlayText: postData.overlayText?.trim() || "",
       overlayTextColor: postData.textColor || postData.overlayTextColor || null,

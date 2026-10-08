@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import HomeScreen from "../(tabs)/HomeScreen";
+import HomeScreen from "../(tabs)/FirebaseHomeScreen";
 import DiscoverScreen from "../(tabs)/DiscoverScreen";
 import CommunitiesScreen from "../(tabs)/CommunitiesScreen";
 import ShopScreen from "../(tabs)/ShopScreen";
