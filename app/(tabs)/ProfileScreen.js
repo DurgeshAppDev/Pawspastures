@@ -4,6 +4,7 @@ import { ScrollView, StatusBar, View, useWindowDimensions } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { auth } from "../../src/config/firebase";
 
 import ProfileHeader from "../../src/components/profile/ProfileHeader";
 import ProfileInfo from "../../src/components/profile/ProfileInfo";
@@ -12,7 +13,7 @@ import AddPostButton from "../../src/components/profile/AddPostButton";
 
 import { colors } from "../../src/theme";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ route }) {
   const navigation = useNavigation();
   const profilePostsRef = useRef(null);
   const loadMoreArmedRef = useRef(false);
@@ -33,6 +34,8 @@ export default function ProfileScreen() {
         : 24;
 
   const contentMaxWidth = isDesktop ? 1180 : 900;
+  const profileUserId = route?.params?.userId || auth.currentUser?.uid;
+  const isOwnProfile = profileUserId === auth.currentUser?.uid;
 
   return (
     <View
@@ -56,7 +59,7 @@ export default function ProfileScreen() {
             paddingHorizontal: horizontalPadding,
           }}
         >
-          <ProfileHeader />
+          <ProfileHeader isOwnProfile={isOwnProfile} />
         </View>
 
         <ScrollView
@@ -86,16 +89,20 @@ export default function ProfileScreen() {
               alignSelf: "center",
             }}
           >
-            <ProfileInfo />
-            <ProfilePosts ref={profilePostsRef} />
+            <ProfileInfo profileUserId={profileUserId} isOwnProfile={isOwnProfile} />
+            <ProfilePosts
+              ref={profilePostsRef}
+              profileUserId={profileUserId}
+              isOwnProfile={isOwnProfile}
+            />
           </View>
         </ScrollView>
 
-        <AddPostButton
+        {isOwnProfile ? <AddPostButton
           onPress={() => {
             navigation.navigate("NewPost");
           }}
-        />
+        /> : null}
       </View>
     </View>
   );

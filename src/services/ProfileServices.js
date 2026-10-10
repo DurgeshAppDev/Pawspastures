@@ -6,6 +6,7 @@ import {
   getDocs,
   serverTimestamp,
   setDoc,
+  writeBatch,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
@@ -52,15 +53,17 @@ export async function updateUserProfile(userId, profileData) {
     : null;
 
   try {
-    await setDoc(
-      userRef,
-      {
-        ...profileData,
-        ...(changesProfileImage ? { profileImageUrl } : {}),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
+    const publicRef = doc(db, "publicProfiles", userId);
+    const profileUpdate = {
+      ...profileData,
+      ...(changesProfileImage ? { profileImageUrl } : {}),
+      uid: userId,
+      updatedAt: serverTimestamp(),
+    };
+    const batch = writeBatch(db);
+    batch.set(userRef, profileUpdate, { merge: true });
+    batch.set(publicRef, profileUpdate, { merge: true });
+    await batch.commit();
   } catch (error) {
     if (profileImageUrl && profileImageUrl !== selectedImage) {
       await deleteProfileImageUrl(profileImageUrl);
@@ -129,6 +132,43 @@ export async function getUserProfileData(userId) {
   return fetchAndCacheUserProfileData(userId);
 }
 
+export async function getPublicUserProfile(userId) {
+  if (!userId) throw new Error("User ID is required.");
+  const profileRef = doc(db, "publicProfiles", userId);
+  const [profileSnapshot, petsSnapshot] = await Promise.all([
+    getDoc(profileRef),
+    getDocs(collection(db, "publicProfiles", userId, "pets")),
+  ]);
+  if (!profileSnapshot.exists()) return null;
+  return {
+    profile: { id: profileSnapshot.id, ...profileSnapshot.data() },
+    pets: petsSnapshot.docs.map((petDoc) => ({ id: petDoc.id, ...petDoc.data() })),
+  };
+}
+
+/** Publishes an existing owner's cached profile once for older accounts. */
+export async function ensurePublicProfile(userId) {
+  if (!userId) return false;
+  const publicRef = doc(db, "publicProfiles", userId);
+  if ((await getDoc(publicRef)).exists()) return true;
+  const privateData = await getUserProfileData(userId);
+  if (!privateData?.profile) return false;
+
+  const batch = writeBatch(db);
+  batch.set(publicRef, { ...privateData.profile, uid: userId });
+  (privateData.pets || []).forEach((pet) => {
+    const petId = pet.id || pet.petId;
+    if (!petId) return;
+    const publicPet = { ...pet, petId };
+    delete publicPet.id;
+    batch.set(doc(db, "publicProfiles", userId, "pets", petId), {
+      ...publicPet,
+    });
+  });
+  await batch.commit();
+  return true;
+}
+
 export async function getUserPet(userId, petId) {
   if (!userId || !petId) {
     throw new Error("User ID and pet ID are required.");
@@ -176,7 +216,10 @@ export async function createUserPet(userId, petData) {
 
   try {
     // Include petId in the first and only create write to satisfy Firestore rules.
-    await setDoc(petRef, pet);
+    const batch = writeBatch(db);
+    batch.set(petRef, pet);
+    batch.set(doc(db, "publicProfiles", userId, "pets", petRef.id), pet);
+    await batch.commit();
   } catch (error) {
     if (imageUrl && imageUrl !== selectedImage) {
       await deleteProfileImageUrl(imageUrl);
@@ -214,16 +257,20 @@ export async function updateUserPet(userId, petId, petData) {
   delete petFields.imageUrl;
 
   try {
-    await setDoc(
-      petRef,
-      {
-        ...petFields,
-        petId,
-        ...(hasImage ? { imageUrl } : {}),
-        updatedAt: serverTimestamp(),
-      },
+    const updatedPet = {
+      ...petFields,
+      petId,
+      ...(hasImage ? { imageUrl } : {}),
+      updatedAt: serverTimestamp(),
+    };
+    const batch = writeBatch(db);
+    batch.set(petRef, updatedPet, { merge: true });
+    batch.set(
+      doc(db, "publicProfiles", userId, "pets", petId),
+      updatedPet,
       { merge: true },
     );
+    await batch.commit();
   } catch (error) {
     if (imageUrl && imageUrl !== selectedImage) {
       await deleteProfileImageUrl(imageUrl);
@@ -250,7 +297,10 @@ export async function deleteUserPet(userId, petId) {
 
   const petRef = doc(db, "users", userId, "pets", petId);
 
-  await deleteDoc(petRef);
+  const batch = writeBatch(db);
+  batch.delete(petRef);
+  batch.delete(doc(db, "publicProfiles", userId, "pets", petId));
+  await batch.commit();
 
   return true;
 }

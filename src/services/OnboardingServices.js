@@ -310,6 +310,18 @@ export const completeOnboarding = async (userId, onboardingData) => {
     },
   );
 
+  batch.set(doc(db, "publicProfiles", userId), {
+    uid: userId,
+    name: userData.name,
+    age: userData.age,
+    gender: userData.gender,
+    location: userData.location,
+    bio: userData.bio,
+    interests: userData.interests,
+    profileImageUrl,
+    updatedAt: serverTimestamp(),
+  });
+
   /*
    * FIRST PET
    *
@@ -332,6 +344,18 @@ export const completeOnboarding = async (userId, onboardingData) => {
 
     createdAt: serverTimestamp(),
 
+    updatedAt: serverTimestamp(),
+  });
+
+  batch.set(doc(db, "publicProfiles", userId, "pets", petRef.id), {
+    petId: petRef.id,
+    petName: petData.petName,
+    type: petData.type,
+    gender: petData.gender,
+    age: petData.age,
+    size: petData.size,
+    imageUrl: petImageUrl,
+    createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 

@@ -7,6 +7,7 @@ import { deleteObject, getDownloadURL, ref, uploadBytesResumable } from "firebas
 import * as ImageManipulator from "expo-image-manipulator";
 import { Platform } from "react-native";
 import compressVideoForUpload from "./compressVideoForUpload";
+import { getFollowingUserIds } from "./SocialServices";
 
 const MAX_ACTIVE_STORIES = 10;
 const STORY_DURATION = 24 * 60 * 60 * 1000;
@@ -32,7 +33,28 @@ export async function getActiveStories() {
 
 export async function getStoriesGroupedByUser() {
   const grouped = new Map();
-  (await getActiveStories()).forEach((story) => {
+  const viewerId = auth.currentUser?.uid;
+  if (!viewerId) return [];
+  const followedIds = await getFollowingUserIds(viewerId);
+  const visibleUserIds = [...new Set([viewerId, ...followedIds])];
+  const userIdChunks = [];
+  for (let index = 0; index < visibleUserIds.length; index += 30) {
+    userIdChunks.push(visibleUserIds.slice(index, index + 30));
+  }
+  const snapshots = await Promise.all(
+    userIdChunks.map((userIds) =>
+      getDocs(
+        query(
+          storiesRef,
+          where("userId", "in", userIds),
+          where("expiresAt", ">", Timestamp.now()),
+          orderBy("expiresAt", "asc"),
+        ),
+      ),
+    ),
+  );
+  const stories = snapshots.flatMap((snapshot) => snapshot.docs.map(normalizeStory));
+  stories.forEach((story) => {
     if (!grouped.has(story.userId)) {
       grouped.set(story.userId, { userId: story.userId, userName: story.userName, avatar: story.avatar, stories: [] });
     }

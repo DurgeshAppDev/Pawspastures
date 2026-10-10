@@ -104,7 +104,10 @@ const createPage = () => ({
   error: "",
 });
 
-const ProfilePosts = forwardRef(function ProfilePosts(_props, ref) {
+const ProfilePosts = forwardRef(function ProfilePosts(
+  { profileUserId, isOwnProfile = true },
+  ref,
+) {
   const [activeTab, setActiveTab] = useState("posts");
   const [pages, setPages] = useState({
     posts: createPage(),
@@ -112,7 +115,7 @@ const ProfilePosts = forwardRef(function ProfilePosts(_props, ref) {
   });
   const pagesRef = useRef(pages);
   const loadingRef = useRef({ posts: false, reels: false });
-  const userId = getAuth().currentUser?.uid;
+  const userId = profileUserId || getAuth().currentUser?.uid;
 
   const { width } = useWindowDimensions();
   const [openedPost, setOpenedPost] = useState(null);
@@ -253,7 +256,7 @@ const ProfilePosts = forwardRef(function ProfilePosts(_props, ref) {
           )}
         </Pressable>
 
-        <Pressable
+        {isOwnProfile ? <Pressable
           onPress={() => selectTab("saved")}
           className="relative flex-1 items-center py-3"
         >
@@ -280,7 +283,7 @@ const ProfilePosts = forwardRef(function ProfilePosts(_props, ref) {
           {activeTab === "saved" && (
             <View className="absolute bottom-0 h-[2px] w-10 bg-primary" />
           )}
-        </Pressable>
+        </Pressable> : null}
       </View>
 
       {/* GRID */}

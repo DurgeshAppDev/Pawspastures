@@ -322,7 +322,12 @@ export default function StoryViewerScreen({ route, navigation }) {
           top: insets.top + 24,
         }}
       >
-        <View className="flex-1 flex-row items-center">
+        <Pressable
+          onPress={() => currentStory.userId && navigation.navigate("UserProfile", { userId: currentStory.userId })}
+          className="flex-1 flex-row items-center"
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${currentStory.userName || "Pet parent"}'s profile`}
+        >
           {currentStory.avatar ? (
             <Image
               source={{ uri: currentStory.avatar }}
@@ -345,7 +350,7 @@ export default function StoryViewerScreen({ route, navigation }) {
               </Text>
             ) : null}
           </View>
-        </View>
+        </Pressable>
 
         <Pressable
           onPress={goBack}

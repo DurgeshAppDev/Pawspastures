@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { auth } from "../config/firebase";
 
-import { getUserProfileData } from "../services/ProfileServices";
+import {
+  ensurePublicProfile,
+  getPublicUserProfile,
+  getUserProfileData,
+} from "../services/ProfileServices";
 import { getCachedProfile } from "../services/profileCache";
 
-export default function useProfile() {
+export default function useProfile(userIdOverride, { publicProfile = false } = {}) {
   const [profile, setProfile] = useState(null);
   const [pets, setPets] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   const loadProfile = useCallback(async () => {
-    const userId = auth.currentUser?.uid;
+    const userId = publicProfile
+      ? userIdOverride
+      : userIdOverride || auth.currentUser?.uid;
 
     if (!userId) {
       setProfile(null);
@@ -24,6 +31,14 @@ export default function useProfile() {
 
     try {
       setError(null);
+
+      if (publicProfile) {
+        setRefreshing(true);
+        const publicData = await getPublicUserProfile(userId);
+        setProfile(publicData?.profile || null);
+        setPets(publicData?.pets || []);
+        return;
+      }
 
       const cached = await getCachedProfile(userId);
 
@@ -52,11 +67,21 @@ export default function useProfile() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [publicProfile, userIdOverride]);
 
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    if (publicProfile) return;
+    const userId = userIdOverride || auth.currentUser?.uid;
+    ensurePublicProfile(userId).catch((publishError) => {
+      console.warn("Unable to publish profile for visitors:", publishError);
+    });
+  }, [publicProfile, userIdOverride]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile]),
+  );
 
   return {
     profile,

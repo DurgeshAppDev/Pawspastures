@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme";
 
 /** A single feed cell only starts its video when FlatList says it is visible. */
-export default function FeedReelCard({ reel, isActive, onComment }) {
+export default function FeedReelCard({ reel, isActive, onComment, onProfilePress }) {
   const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
     instance.muted = true;
@@ -50,7 +50,12 @@ export default function FeedReelCard({ reel, isActive, onComment }) {
           </View>
         )}
         <View className="absolute bottom-0 left-0 right-0 bg-black/55 px-4 py-3">
-          <View className="mb-2 flex-row items-center">
+            <Pressable
+              onPress={() => onProfilePress?.(reel)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${reel.authorName || "Pet parent"}'s profile`}
+              className="mb-2 flex-row items-center"
+            >
             {reel.authorPhotoUrl ? (
               <Image source={{ uri: reel.authorPhotoUrl }} className="h-9 w-9 rounded-full" />
             ) : (
@@ -62,7 +67,7 @@ export default function FeedReelCard({ reel, isActive, onComment }) {
               <Text numberOfLines={1} className="font-bold text-white">{reel.authorName || "Pet parent"}</Text>
               {reel.petName ? <Text numberOfLines={1} className="text-xs text-white/75">with {reel.petName}</Text> : null}
             </View>
-          </View>
+          </Pressable>
           {reel.caption ? <Text numberOfLines={3} className="text-sm leading-5 text-white">{reel.caption}</Text> : null}
         </View>
       </View>

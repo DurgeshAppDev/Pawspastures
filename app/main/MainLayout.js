@@ -21,6 +21,7 @@ import StoryViewerScreen from "./StoryViewerScreen";
 import MediaEditorScreen from "./MediaEditorScreen";
 import NewPostScreen from "./CreatePostScreen";
 import SettingsScreen from "./SettingsScreen";
+import DirectMessageScreen from "../../src/components/messages/DirectMessageScreen";
 
 import EditProfileScreen from "../profile/EditProfileScreen";
 import AddPetScreen from "../profile/AddPetScreen";
@@ -243,6 +244,10 @@ export default function MainLayout() {
       <Stack.Screen name="MediaEditor" component={MediaEditorScreen} />
 
       <Stack.Screen name="StoryViewer" component={StoryViewerScreen} />
+
+      <Stack.Screen name="UserProfile" component={ProfileScreen} />
+
+      <Stack.Screen name="DirectMessage" component={DirectMessageScreen} />
 
       <Stack.Screen name="Settings" component={SettingsScreen} />
 

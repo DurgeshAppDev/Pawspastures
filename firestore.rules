@@ -10,6 +10,25 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    // Public profile copies contain only fields intentionally shown to visitors.
+    match /publicProfiles/{userId} {
+      allow read: if signedIn();
+      allow create: if ownsUser(userId)
+                    && request.resource.data.uid == userId;
+      allow update: if ownsUser(userId)
+                    && request.resource.data.uid == resource.data.uid;
+      allow delete: if ownsUser(userId);
+
+      match /pets/{petId} {
+        allow read: if signedIn();
+        allow create: if ownsUser(userId)
+                      && request.resource.data.petId == petId;
+        allow update: if ownsUser(userId)
+                      && request.resource.data.petId == resource.data.petId;
+        allow delete: if ownsUser(userId);
+      }
+    }
+
     // Account profile documents remain readable and writable only by their owner.
     match /users/{userId} {
       allow read: if ownsUser(userId);
@@ -18,6 +37,30 @@ service cloud.firestore {
       allow update: if ownsUser(userId)
                     && request.resource.data.uid == resource.data.uid;
       allow delete: if ownsUser(userId);
+
+      match /following/{followedUserId} {
+        allow read: if signedIn();
+        allow create: if ownsUser(userId)
+                      && userId != followedUserId
+                      && request.resource.data.userId == followedUserId
+                      && exists(/databases/$(database)/documents/publicProfiles/$(followedUserId));
+        allow delete: if ownsUser(userId)
+                      && !existsAfter(/databases/$(database)/documents/users/$(followedUserId)/followers/$(userId));
+        allow update: if false;
+      }
+
+      match /followers/{followerUserId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+                      && request.auth.uid == followerUserId
+                      && followerUserId != userId
+                      && request.resource.data.userId == followerUserId
+                      && existsAfter(/databases/$(database)/documents/users/$(followerUserId)/following/$(userId));
+        allow delete: if signedIn()
+                      && request.auth.uid == followerUserId
+                      && !existsAfter(/databases/$(database)/documents/users/$(followerUserId)/following/$(userId));
+        allow update: if false;
+      }
 
       match /pets/{petId} {
         allow read: if ownsUser(userId);
@@ -73,6 +116,38 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if signedIn()
                     && resource.data.userId == request.auth.uid;
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if signedIn()
+                  && request.auth.uid in resource.data.memberIds;
+      allow create: if signedIn()
+                    && request.resource.data.memberIds is list
+                    && request.resource.data.memberIds.size() == 2
+                    && request.auth.uid in request.resource.data.memberIds;
+      allow update: if signedIn()
+                    && request.auth.uid in resource.data.memberIds
+                    && request.resource.data.memberIds == resource.data.memberIds;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function isParticipant() {
+          return signedIn()
+                 && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.memberIds;
+        }
+        function isParticipantAfterWrite() {
+          return signedIn()
+                 && request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.memberIds;
+        }
+        allow read: if isParticipant();
+        allow create: if isParticipantAfterWrite()
+                      && request.resource.data.senderId == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 4000
+                      && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
     }
   }
 }

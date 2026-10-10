@@ -23,6 +23,7 @@ import { Platform } from "react-native";
 import compressVideoForUpload from "./compressVideoForUpload";
 
 import { db, storage } from "../config/firebase";
+import { getCachedProfile } from "./profileCache";
 
 const STORAGE_ENABLED =
   process.env.EXPO_PUBLIC_FIREBASE_STORAGE_ENABLED === "true";
@@ -155,6 +156,9 @@ export async function createUserPost(userId, postData, { onProgress } = {}) {
   }
 
   const postRef = doc(getPostCollection(userId));
+  const cachedProfile = await getCachedProfile(userId);
+  const authorProfile = cachedProfile?.profile || {};
+  const authorPet = cachedProfile?.pets?.[0] || {};
   const isVideo = postData.mediaType === "video";
   let blob;
   if (isVideo) {
@@ -182,6 +186,9 @@ export async function createUserPost(userId, postData, { onProgress } = {}) {
     const post = {
       postId: postRef.id,
       userId,
+      authorName: authorProfile.name || "Pet parent",
+      authorPhotoUrl: authorProfile.profileImageUrl || null,
+      petName: authorPet.petName || "",
       kind: postData.kind,
       mediaType: postData.mediaType,
       mediaUrl,

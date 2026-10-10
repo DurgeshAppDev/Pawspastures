@@ -199,6 +199,14 @@ export default function FirebaseHomeScreen() {
           <FeedReelCard
             reel={item}
             isActive={activeReelId === `${item.userId || "user"}_${item.id}`}
+          onProfilePress={(reel) => {
+            if (!reel.userId) return;
+            if (reel.userId === auth.currentUser?.uid) {
+              navigation.navigate("MainTabs", { screen: "Profile" });
+            } else {
+              navigation.navigate("UserProfile", { userId: reel.userId });
+            }
+          }}
           />
         )}
         ListHeaderComponent={header}

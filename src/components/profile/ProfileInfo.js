@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 
 import {
   Image,
@@ -11,11 +11,13 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { colors } from "../../theme";
 import useProfile from "../../hooks/useProfile";
+import { getFollowStats, setFollowingUser } from "../../services/SocialServices";
 
-export default function ProfileInfo() {
+export default function ProfileInfo({ profileUserId, isOwnProfile }) {
   const navigation = useNavigation();
 
   const { width } = useWindowDimensions();
@@ -23,11 +25,56 @@ export default function ProfileInfo() {
   const isWeb = width >= 768;
   const isDesktop = width >= 1100;
 
-  const { profile, pets } = useProfile();
+  const { profile, pets, refreshing } = useProfile(profileUserId, {
+    publicProfile: !isOwnProfile,
+  });
+  const [followStats, setFollowStats] = useState({
+    followers: 0,
+    following: 0,
+    isFollowing: false,
+  });
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getFollowStats(profileUserId)
+        .then((stats) => {
+          if (active) setFollowStats(stats);
+        })
+        .catch((error) => console.error("Profile follow counts failed:", error));
+      return () => {
+        active = false;
+      };
+    }, [profileUserId]),
+  );
+
+  const toggleFollow = async () => {
+    if (followBusy) return;
+    setFollowBusy(true);
+    setFollowError("");
+    try {
+      const result = await setFollowingUser(profileUserId, !followStats.isFollowing);
+      setFollowStats((current) => ({
+        ...current,
+        isFollowing: result.isFollowing,
+        followers: Math.max(
+          0,
+          current.followers + (result.changed ? (result.isFollowing ? 1 : -1) : 0),
+        ),
+      }));
+    } catch (error) {
+      console.error("Follow update failed:", error);
+      setFollowError("Could not update your follow. Please try again.");
+    } finally {
+      setFollowBusy(false);
+    }
+  };
 
   const profileImage = profile?.profileImageUrl || null;
 
-  const name = profile?.name || "Your Name";
+  const name = profile?.name || (isOwnProfile ? "Your Name" : "Profile unavailable");
 
   const age =
     profile?.age !== undefined && profile?.age !== null ? profile.age : null;
@@ -168,26 +215,56 @@ export default function ProfileInfo() {
           </View>
         ) : null}
 
-        <Pressable
-          onPress={() => navigation.navigate("ProfileEdit")}
-          className="items-center justify-center rounded-xl bg-primary"
-          style={{
-            marginTop: 18,
-            width: isDesktop ? 190 : "100%",
-            maxWidth: 420,
-            paddingVertical: 13,
-          }}
-        >
-          <Text
-            className="font-extrabold"
-            style={{
-              color: colors.background,
-              fontSize: 13,
-            }}
+        <View className="mt-4 w-full max-w-[520px] flex-row items-center justify-center gap-8">
+          <View className="items-center">
+            <Text className="text-base font-extrabold text-text-primary">
+              {followStats.followers.toLocaleString()}
+            </Text>
+            <Text className="text-xs text-text-secondary">Followers</Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-base font-extrabold text-text-primary">
+              {followStats.following.toLocaleString()}
+            </Text>
+            <Text className="text-xs text-text-secondary">Following</Text>
+          </View>
+        </View>
+
+        {isOwnProfile ? (
+          <Pressable
+            onPress={() => navigation.navigate("ProfileEdit")}
+            className="mt-4 items-center justify-center rounded-xl bg-primary"
+            style={{ width: isDesktop ? 190 : "100%", maxWidth: 420, paddingVertical: 13 }}
           >
-            Edit Profile
-          </Text>
-        </Pressable>
+            <Text className="font-extrabold text-background">Edit Profile</Text>
+          </Pressable>
+        ) : (
+          <View className="mt-4 w-full max-w-[520px] flex-row gap-3">
+            <Pressable
+              accessibilityRole="button"
+              onPress={toggleFollow}
+              disabled={followBusy || !profile}
+              className={`h-11 flex-1 items-center justify-center rounded-xl ${followStats.isFollowing ? "bg-surface" : "bg-primary"}`}
+            >
+              <Text className={`font-extrabold ${followStats.isFollowing ? "text-text-primary" : "text-background"}`}>
+                {followBusy ? "Please wait..." : followStats.isFollowing ? "Following" : "Follow"}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.navigate("DirectMessage", {
+                userId: profileUserId,
+                name: profile?.name || "Pet parent",
+                photoUrl: profile?.profileImageUrl || null,
+              })}
+              className="h-11 flex-1 flex-row items-center justify-center rounded-xl border border-border bg-surface"
+            >
+              <Ionicons name="chatbubble-outline" size={17} color={colors["text-primary"]} />
+              <Text className="ml-2 font-bold text-text-primary">Message</Text>
+            </Pressable>
+          </View>
+        )}
+        {followError ? <Text className="mt-2 text-xs text-accent">{followError}</Text> : null}
       </View>
 
       <View
@@ -206,7 +283,7 @@ export default function ProfileInfo() {
             Identities
           </Text>
 
-          <Pressable
+          {isOwnProfile ? <Pressable
             onPress={() => navigation.navigate("AddPet")}
             className="flex-row items-center"
           >
@@ -221,10 +298,12 @@ export default function ProfileInfo() {
             >
               Add Pet
             </Text>
-          </Pressable>
+          </Pressable> : null}
         </View>
 
-        {pets.length > 0 ? (
+        {refreshing && !profile ? (
+          <Text className="py-6 text-center text-sm text-text-secondary">Loading profile...</Text>
+        ) : pets.length > 0 ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -244,11 +323,7 @@ export default function ProfileInfo() {
                   }}
                 >
                   <Pressable
-                    onPress={() =>
-                      navigation.navigate("EditPet", {
-                        petId,
-                      })
-                    }
+                    onPress={isOwnProfile ? () => navigation.navigate("EditPet", { petId }) : undefined}
                     className="relative"
                   >
                     <View
@@ -279,13 +354,13 @@ export default function ProfileInfo() {
                       )}
                     </View>
 
-                    <View className="absolute bottom-0 right-0 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary">
+                    {isOwnProfile ? <View className="absolute bottom-0 right-0 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary">
                       <Ionicons
                         name="pencil"
                         size={11}
                         color={colors["text-primary"]}
                       />
-                    </View>
+                    </View> : null}
                   </Pressable>
 
                   <Text

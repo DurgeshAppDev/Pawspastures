@@ -7,7 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import { colors } from "../../theme";
 
-export default function ProfileHeader() {
+export default function ProfileHeader({ isOwnProfile = true }) {
   const navigation = useNavigation();
 
   const { width } = useWindowDimensions();
@@ -35,20 +35,26 @@ export default function ProfileHeader() {
         </Text>
       </View>
 
-      <Pressable
-        onPress={() => navigation.navigate("Settings")}
-        className="items-center justify-center rounded-xl bg-surface"
-        style={{
-          width: isDesktop ? 42 : 40,
-          height: isDesktop ? 42 : 40,
-        }}
-      >
-        <Ionicons
-          name="settings-outline"
-          size={21}
-          color={colors["icon-muted"]}
-        />
-      </Pressable>
+      {isOwnProfile ? (
+        <Pressable
+          onPress={() => navigation.navigate("Settings")}
+          accessibilityRole="button"
+          accessibilityLabel="Profile settings"
+          className="items-center justify-center rounded-xl bg-surface"
+          style={{ width: isDesktop ? 42 : 40, height: isDesktop ? 42 : 40 }}
+        >
+          <Ionicons name="settings-outline" size={21} color={colors["icon-muted"]} />
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          className="h-10 w-10 items-center justify-center rounded-xl bg-surface"
+        >
+          <Ionicons name="arrow-back" size={20} color={colors["icon-muted"]} />
+        </Pressable>
+      )}
     </View>
   );
 }
